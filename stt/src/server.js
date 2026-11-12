@@ -12,11 +12,52 @@ function allowedOrigin(origin, host) {
   return origin === `http://localhost:${port}` || origin === `http://127.0.0.1:${port}`;
 }
 
-function createServer({ openStream, harnessPath }) {
+const MAX_BODY = 262144, MAX_LINES = 400;
+
+function json(res, status, obj) {
+  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
+  res.end(JSON.stringify(obj));
+}
+
+/* Each line is { id, time, speaker, text }, all strings. */
+function validLines(body) {
+  const lines = body && body.lines;
+  if (!Array.isArray(lines) || lines.length > MAX_LINES) return null;
+  const ok = lines.every(l => l && ['id', 'time', 'speaker', 'text'].every(k => typeof l[k] === 'string'));
+  return ok ? lines.map(l => ({ id: l.id, time: l.time, speaker: l.speaker, text: l.text })) : null;
+}
+
+/* POST /suggest {lines}: 200 {fields}, 503 {off} with no key, 502 {error} when Anthropic fails. */
+function handleSuggest(req, res, suggest) {
+  if (!allowedOrigin(req.headers.origin, req.headers.host)) { req.resume(); json(res, 403, { error: 'origin not allowed' }); return; }
+  const chunks = [];
+  let size = 0, done = false;
+  req.on('data', c => {
+    if (done) return;
+    size += c.length;
+    if (size > MAX_BODY) { done = true; json(res, 413, { error: 'body too large' }); req.resume(); return; }
+    chunks.push(c);
+  });
+  req.on('end', async () => {
+    if (done) return;
+    done = true;
+    let body;
+    try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch (err) { json(res, 400, { error: 'not JSON' }); return; }
+    const lines = validLines(body);
+    if (!lines) { json(res, 400, { error: 'expected {lines: [{id, time, speaker, text}]}' }); return; }
+    if (!suggest) { json(res, 503, { off: true }); return; }
+    const r = await suggest(lines);
+    if (r && r.ok) json(res, 200, { fields: r.fields });
+    else json(res, 502, { error: (r && r.reason) || 'error' });
+  });
+}
+
+function createServer({ openStream, harnessPath, suggest = null }) {
   const wss = new WebSocketServer({ noServer: true });
 
   const server = http.createServer((req, res) => {
     const { pathname } = new URL(req.url, 'http://relay');
+    if (req.method === 'POST' && pathname === '/suggest') { handleSuggest(req, res, suggest); return; }
     if (req.method === 'GET' && pathname === '/') {
       fs.readFile(harnessPath, (err, body) => {
         if (err) { res.writeHead(500); res.end('harness not found'); return; }

@@ -4,6 +4,7 @@ const { loadEnvFiles } = require('./config');
 const envFiles = loadEnvFiles([path.join(__dirname, '../.env'), path.join(__dirname, '../../.env')]);
 const { createServer } = require('./server');
 const { parseLanguages, buildStreamingRequest, createGoogleStream, createRotatingStream, makeClient } = require('./google');
+const { createSuggester } = require('./suggest');
 
 const problem = require('./config').credentialProblem();
 if (problem) { console.error(problem); process.exit(1); }
@@ -16,8 +17,18 @@ const port = Number(process.env.STT_PORT || 8787);
 const client = makeClient(location);
 const request = buildStreamingRequest({ project, location, languages });
 
+/* Intake form suggestions: on only with an Anthropic key (never logged). Without one, POST /suggest answers 503. */
+const suggestModel = require('./config').suggestModel();
+let suggest = null;
+if (process.env.ANTHROPIC_API_KEY) {
+  const Anthropic = require('@anthropic-ai/sdk');
+  const anthropic = new Anthropic({ timeout: 10000, maxRetries: 0 });
+  suggest = createSuggester({ client: anthropic, model: suggestModel, log: msg => console.error(msg) }).suggest;
+}
+
 const server = createServer({
   harnessPath: path.join(__dirname, '../../preview-harness.html'),
+  suggest,
   openStream: ({ speaker, onPartial, onFinal, onError }) => {
     return createRotatingStream({
       open: () => {
@@ -41,5 +52,6 @@ server.listen(port, '127.0.0.1', () => {
   const auth = process.env.GOOGLE_APPLICATION_CREDENTIALS ? 'key file' : 'gcloud login';
   console.log(`env files: ${envFiles.length ? envFiles.map(f => path.relative(process.cwd(), f) || f).join(', ') : 'none'} · auth: ${auth}`);
   console.log(`languages=${JSON.stringify(languages)} location=${location}`);
+  console.log(suggest ? `suggestions: on (${suggestModel})` : 'suggestions: off (no ANTHROPIC_API_KEY)');
   console.log(`RETINA STT relay on http://localhost:${port}/#Intake`);
 });

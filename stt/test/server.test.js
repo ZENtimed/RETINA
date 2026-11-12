@@ -10,14 +10,14 @@ const harnessPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'retina-stt-
 fs.writeFileSync(harnessPath, '<!doctype html><title>h</title>');
 
 /* A fake Google stream per connection, recording what the relay does with it. */
-function start() {
+function start({ suggest } = {}) {
   const streams = [];
   const openStream = (opts) => {
     const s = { opts, writes: [], ends: 0, write(b) { s.writes.push(b); }, end() { s.ends++; } };
     streams.push(s);
     return s;
   };
-  const server = createServer({ openStream, harnessPath });
+  const server = createServer({ openStream, harnessPath, suggest });
   return new Promise(res => server.listen(0, '127.0.0.1', () => res({ server, streams, port: server.address().port })));
 }
 
@@ -127,4 +127,74 @@ test('GET / serves the harness; anything else is 404', async () => {
   assert.equal(await res.text(), fs.readFileSync(harnessPath, 'utf8'));
   assert.equal((await fetch(`http://127.0.0.1:${port}/x`)).status, 404);
   server.close();
+});
+
+/* ---- POST /suggest ---- */
+const http = require('node:http');
+function post(port, path, body, headers = {}) {
+  return new Promise((res, rej) => {
+    const data = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
+    const req = http.request({ host: '127.0.0.1', port, path, method: 'POST', agent: false, headers: { 'content-type': 'application/json', 'content-length': data.length, ...headers } }, r => {
+      const chunks = []; r.on('data', c => chunks.push(c));
+      r.on('end', () => { const text = Buffer.concat(chunks).toString(); let json = null; try { json = JSON.parse(text); } catch (e) {} res({ status: r.statusCode, json, type: r.headers['content-type'] }); });
+    });
+    req.on('error', rej); req.end(data);
+  });
+}
+const LINE = { id: 'replay-1', time: '14:19:55', speaker: 'Caller', text: 'There is an accident in front of Building A, Soi Lat Phrao 1.' };
+function recorder(result) { const calls = []; const fn = async (lines) => { calls.push(lines); return result; }; fn.calls = calls; return fn; }
+
+test('POST /suggest returns the checked fields', async () => {
+  const fields = { address: { value: 'Front of Building A, Soi Lat Phrao 1', quote: 'in front of Building A', lineId: 'replay-1' } };
+  const suggest = recorder({ ok: true, fields });
+  const { server, port } = await start({ suggest });
+  const r = await post(port, '/suggest', { lines: [LINE] }, { origin: `http://localhost:${port}` });
+  assert.equal(r.status, 200);
+  assert.match(r.type, /application\/json/);
+  assert.deepEqual(r.json, { fields });
+  assert.deepEqual(suggest.calls, [[LINE]]);
+  server.close();
+});
+
+test('POST /suggest without a key answers 503 {off:true}', async () => {
+  const { server, port } = await start({ suggest: null });
+  const r = await post(port, '/suggest', { lines: [LINE] });
+  assert.equal(r.status, 503);
+  assert.deepEqual(r.json, { off: true });
+  server.close();
+});
+
+test('POST /suggest passes an Anthropic failure on as 502', async () => {
+  const { server, port } = await start({ suggest: recorder({ ok: false, reason: 'timeout' }) });
+  const r = await post(port, '/suggest', { lines: [LINE] });
+  assert.equal(r.status, 502);
+  assert.deepEqual(r.json, { error: 'timeout' });
+  server.close();
+});
+
+test('POST /suggest rejects junk without calling suggest (Review Focus 5)', async () => {
+  const suggest = recorder({ ok: true, fields: {} });
+  const { server, port } = await start({ suggest });
+  const many = Array.from({ length: 401 }, (_, i) => ({ ...LINE, id: 'l' + i }));
+  const cases = [
+    [400, '{not json'],
+    [400, { lines: 'x' }],
+    [400, { lines: [{ id: 'a', time: 't', speaker: 'Caller' }] }],
+    [400, { lines: [{ ...LINE, text: 5 }] }],
+    [400, { lines: many }],
+    [413, Buffer.alloc(300 * 1024, 32)]
+  ];
+  for (const [code, body] of cases) assert.equal((await post(port, '/suggest', body)).status, code, JSON.stringify(body).slice(0, 40));
+  assert.equal((await post(port, '/suggest', { lines: [LINE] }, { origin: 'http://evil.example' })).status, 403);
+  assert.equal(suggest.calls.length, 0);
+  server.close();
+});
+
+test('GET /suggest is 404 and the WebSocket path still works', async () => {
+  const { server, port } = await start({ suggest: recorder({ ok: true, fields: {} }) });
+  const g = await new Promise(res => http.get({ host: '127.0.0.1', port, path: '/suggest', agent: false }, r => { r.resume(); res(r.statusCode); }));
+  assert.equal(g, 404);
+  const c = connect(port, 'Caller');
+  assert.deepEqual(await c.next(1), { type: 'ready', speaker: 'Caller' });
+  c.ws.close(); await c.closed; server.close();
 });
