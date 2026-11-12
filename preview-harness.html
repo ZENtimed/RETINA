@@ -1,0 +1,1608 @@
+<!doctype html><html data-theme="light"><head><meta charset="utf-8"><title>Smart EMS preview</title><style>:root{--bg-base:#F3F8FB;--bg-surface:#FFFFFF;--bg-raised:#E3F6FD;--bg-overlay:#10182866;--border-default:#D5E6EF;--border-strong:#7A97A8;--text-primary:#101828;--text-muted:#5B6472;--triage-red:#EF4444;--triage-yellow:#F59E0B;--triage-green:#10B981;--triage-white:#E2E8F0;--triage-black:#1F2937;--triage-red-ink:#B91C1C;--triage-yellow-ink:#92400E;--triage-green-ink:#047857;--triage-red-soft:#FEE2E2;--triage-yellow-soft:#FEF3C7;--triage-green-soft:#D1FAE5;--triage-red-line:#FCA5A5;--triage-yellow-line:#FCD34D;--triage-green-line:#6EE7B7;--action:#2596BE;--action-hover:#1E7FA3;--action-ink:#FFFFFF;--action-soft:#E3F6FD;--action-line:#B7E8FB;--accent:#E6E246;--accent-ink:#1C1A00;--focus-ring:var(--action);--danger-fill:#DC2626;--danger-hover:#B91C1C;--danger-deep:#7F1D1D;--on-danger:#FFFFFF;--on-success:#022C22;--on-warning:#1C1003;--map-land:#D3E2EB;--map-block:#F7FAFC;--map-road-major:#B9CCD8;--map-water:#BEE3F3;--map-park:#D5EFDD;--space-4:4px;--space-8:8px;--space-16:16px;--space-24:24px;--space-32:32px;--space-48:48px;--space-64:64px;--radius-sm:6px;--radius-md:8px;--radius-lg:12px;--radius-xl:16px;--radius-full:9999px;--control-sm:32px;--control-md:40px;--control-lg:48px;--control-touch:64px;--shadow-float:0 8px 24px #1018281f;--shadow-modal:0 24px 64px #10182833;--font-sans:Inter, system-ui, -apple-system, "Segoe UI", sans-serif;}</style><style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+/* Smart EMS component styles. Every value comes from tokens.css; class prefix ems-. */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 20px;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+button { font-family: inherit; }
+.ems-num { font-variant-numeric: tabular-nums; }
+.ems-row { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; }
+.ems-col { display: flex; flex-direction: column; gap: var(--space-16); }
+.ems-muted { color: var(--text-muted); }
+.ems-label {
+  font-size: 12px; line-height: 16px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-muted);
+}
+.ems-icon { flex: none; display: block; }
+
+@keyframes ems-blink { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+@keyframes ems-ring { 0% { transform: scale(.6); opacity: .9; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes ems-flash-red { 0%, 100% { box-shadow: 0 0 0 0 var(--triage-red-line); } 50% { box-shadow: 0 0 0 6px var(--triage-red-soft); } }
+@keyframes ems-flash-amber { 0%, 100% { box-shadow: 0 0 0 0 var(--triage-yellow-line); } 50% { box-shadow: 0 0 0 8px var(--triage-yellow-soft); } }
+@keyframes ems-wave { 0%, 100% { transform: scaleY(.3); } 50% { transform: scaleY(1); } }
+@keyframes ems-spin { to { transform: rotate(360deg); } }
+
+/* ---------- Button ---------- */
+.ems-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-8);
+  height: var(--control-md); padding: 0 var(--space-16);
+  border-radius: var(--radius-md); border: 1px solid transparent;
+  font-size: 14px; line-height: 20px; font-weight: 600; white-space: nowrap;
+  cursor: pointer; transition: background-color .15s, border-color .15s, color .15s;
+  text-decoration: none;
+}
+.ems-btn:active:not(:disabled) { transform: translateY(1px); }
+.ems-btn:disabled { opacity: .45; cursor: not-allowed; }
+.ems-btn-sm { height: var(--control-sm); padding: 0 12px; font-size: 13px; }
+.ems-btn-lg { height: var(--control-lg); padding: 0 var(--space-24); font-size: 16px; }
+.ems-btn-xl { height: var(--control-touch); padding: 0 var(--space-32); font-size: 18px; font-weight: 700; border-radius: var(--radius-lg); }
+.ems-btn-block { display: flex; width: 100%; }
+.ems-btn-primary { background: var(--action); color: var(--action-ink); }
+.ems-btn-primary:hover:not(:disabled) { background: var(--action-hover); }
+.ems-btn-success { background: var(--triage-green); color: var(--on-success); }
+.ems-btn-success:hover:not(:disabled) { background: var(--triage-green-ink); }
+.ems-btn-warning { background: var(--triage-yellow); color: var(--on-warning); }
+.ems-btn-warning:hover:not(:disabled) { background: var(--triage-yellow-ink); }
+.ems-btn-danger { background: var(--danger-fill); color: var(--on-danger); }
+.ems-btn-danger:hover:not(:disabled) { background: var(--danger-hover); }
+.ems-btn-secondary { background: var(--bg-raised); border-color: var(--border-strong); color: var(--text-primary); }
+.ems-btn-secondary:hover:not(:disabled) { background: var(--border-strong); }
+.ems-btn-outline { background: transparent; border-color: var(--border-strong); color: var(--text-primary); }
+.ems-btn-outline:hover:not(:disabled) { background: var(--bg-raised); }
+.ems-btn-danger-outline { background: transparent; border-color: var(--triage-red-line); color: var(--triage-red-ink); }
+.ems-btn-danger-outline:hover:not(:disabled) { background: var(--triage-red-soft); border-color: var(--triage-red); }
+.ems-btn-ghost { background: transparent; color: var(--text-muted); }
+.ems-btn-ghost:hover:not(:disabled) { background: var(--bg-raised); color: var(--text-primary); }
+.ems-btn-icon { padding: 0; width: var(--control-md); }
+.ems-btn-icon.ems-btn-sm { width: var(--control-sm); }
+.ems-btn-icon.ems-btn-lg { width: var(--control-lg); }
+.ems-btn-icon.ems-btn-xl { width: var(--control-touch); }
+.ems-btn-round { border-radius: var(--radius-full); }
+.ems-btn-flash.ems-btn-warning { animation: ems-flash-amber 1.2s ease-in-out infinite; }
+.ems-btn-flash.ems-btn-danger { animation: ems-flash-red 1.2s ease-in-out infinite; }
+.ems-btn-stack { flex-direction: column; height: auto; padding: var(--space-16); gap: var(--space-4); white-space: normal; text-align: center; }
+
+/* ---------- Dot ---------- */
+.ems-dot { width: 8px; height: 8px; border-radius: var(--radius-full); flex: none; display: inline-block; background: currentColor; }
+.ems-dot-red { background: var(--triage-red); }
+.ems-dot-yellow { background: var(--triage-yellow); }
+.ems-dot-green { background: var(--triage-green); }
+.ems-dot-white { background: var(--triage-white); }
+.ems-dot-black { background: var(--triage-black); box-shadow: 0 0 0 1.5px var(--text-muted); }
+.ems-dot-info { background: var(--action); }
+.ems-dot-neutral { background: var(--text-muted); }
+.ems-dot-pulse { position: relative; }
+.ems-dot-pulse::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; background: inherit;
+  animation: ems-ring 1.6s ease-out infinite;
+}
+
+/* ---------- TriageBadge ---------- */
+.ems-triage {
+  display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px;
+  border-radius: var(--radius-full); border: 1px solid transparent;
+  font-size: 12px; line-height: 16px; font-weight: 700; white-space: nowrap;
+}
+.ems-triage-lg { height: 32px; padding: 0 14px; font-size: 14px; gap: 8px; }
+.ems-triage-xl { height: 44px; padding: 0 20px; font-size: 18px; gap: 10px; }
+.ems-triage-xl .ems-dot { width: 12px; height: 12px; }
+.ems-triage-red { background: var(--triage-red-soft); border-color: var(--triage-red-line); color: var(--triage-red-ink); }
+.ems-triage-yellow { background: var(--triage-yellow-soft); border-color: var(--triage-yellow-line); color: var(--triage-yellow-ink); }
+.ems-triage-green { background: var(--triage-green-soft); border-color: var(--triage-green-line); color: var(--triage-green-ink); }
+.ems-triage-white { background: var(--bg-raised); border-color: var(--border-strong); color: var(--triage-white); }
+.ems-triage-black { background: var(--bg-raised); border-color: var(--border-strong); color: var(--text-muted); }
+.ems-triage-solid.ems-triage-red { background: var(--danger-fill); border-color: var(--danger-fill); color: var(--on-danger); }
+.ems-triage-solid.ems-triage-red .ems-dot { background: var(--on-danger); }
+.ems-triage-solid.ems-triage-yellow { background: var(--triage-yellow); border-color: var(--triage-yellow); color: var(--on-warning); }
+.ems-triage-solid.ems-triage-yellow .ems-dot { background: var(--on-warning); }
+.ems-triage-solid.ems-triage-green { background: var(--triage-green); border-color: var(--triage-green); color: var(--on-success); }
+.ems-triage-solid.ems-triage-green .ems-dot { background: var(--on-success); }
+.ems-triage-solid.ems-triage-white { background: var(--triage-white); border-color: var(--border-strong); color: var(--text-primary); }
+.ems-triage-solid.ems-triage-white .ems-dot { background: var(--text-primary); }
+.ems-triage-solid.ems-triage-black { background: var(--triage-black); border-color: var(--triage-black); color: var(--on-danger); }
+
+/* ---------- StatusPill ---------- */
+.ems-pill {
+  display: inline-flex; align-items: center; gap: var(--space-8); height: 28px; padding: 0 12px;
+  border-radius: var(--radius-full); border: 1px solid var(--border-strong);
+  background: var(--bg-raised); color: var(--text-primary);
+  font-size: 12px; line-height: 16px; font-weight: 600; white-space: nowrap;
+}
+.ems-pill-lg { height: 36px; padding: 0 16px; font-size: 14px; }
+.ems-pill-success { background: var(--triage-green-soft); border-color: var(--triage-green-line); color: var(--triage-green-ink); }
+.ems-pill-warning { background: var(--triage-yellow-soft); border-color: var(--triage-yellow-line); color: var(--triage-yellow-ink); }
+.ems-pill-danger { background: var(--triage-red-soft); border-color: var(--triage-red-line); color: var(--triage-red-ink); }
+.ems-pill-info { background: var(--action-soft); border-color: var(--action-line); color: var(--action); }
+.ems-pill-live { background: var(--triage-green-soft); border-color: var(--triage-green-line); color: var(--triage-green-ink); }
+.ems-pill .ems-spinner { width: 12px; height: 12px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ems-spin .8s linear infinite; }
+
+/* ---------- KeywordChip ---------- */
+.ems-chip {
+  display: inline-flex; align-items: center; gap: var(--space-8); height: var(--control-sm);
+  padding: 0 12px; border-radius: var(--radius-full);
+  background: var(--triage-red-soft); border: 1px solid var(--triage-red-line); color: var(--triage-red-ink);
+  font-size: 13px; line-height: 18px; font-weight: 600; white-space: nowrap;
+}
+.ems-chip-removable { padding-right: 4px; }
+.ems-chip-yellow { background: var(--triage-yellow-soft); border-color: var(--triage-yellow-line); color: var(--triage-yellow-ink); }
+.ems-chip-neutral { background: var(--bg-raised); border-color: var(--border-strong); color: var(--text-primary); }
+.ems-chip-ondanger { background: var(--danger-deep); border-color: var(--danger-deep); color: var(--on-danger); height: 36px; font-size: 15px; }
+.ems-chip-x {
+  width: 24px; height: 24px; border-radius: var(--radius-full); border: 0; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: transparent; color: inherit; cursor: pointer;
+}
+.ems-chip-x:hover { background: var(--triage-red-line); }
+.ems-chip-suggest { gap: 6px; padding-left: 8px; background: transparent; border: 1px dashed var(--action-line); color: var(--action); cursor: pointer; font-family: var(--font-sans); }
+.ems-chip-suggest:hover { background: var(--action-soft); border-color: var(--action); }
+
+/* ---------- ChipInput ---------- */
+.ems-chipin {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); min-height: var(--control-md); padding: 4px;
+  background: var(--bg-base); border: 1px solid var(--border-strong); border-radius: var(--radius-md); cursor: text;
+}
+.ems-chipin:hover { border-color: var(--text-muted); }
+.ems-chipin:focus-within { border-color: var(--action); box-shadow: 0 0 0 3px var(--action-soft); }
+.ems-chipin-input { flex: 1; min-width: 120px; height: var(--control-sm); padding: 0 8px; border: 0; background: transparent; color: var(--text-primary); font: 400 14px/20px var(--font-sans); outline: none; }
+.ems-chipin-input::placeholder { color: var(--text-muted); }
+.ems-chipin-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); }
+.ems-chipin-ai { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.ems-chipin-ai .ems-icon { color: var(--action); }
+.ems-chips { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+
+/* ---------- Avatar ---------- */
+.ems-avatar {
+  position: relative; width: 32px; height: 32px; border-radius: var(--radius-full); flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--action-soft); color: var(--action); border: 1px solid var(--action-line);
+  font-size: 12px; font-weight: 700;
+}
+.ems-avatar-sm { width: 24px; height: 24px; font-size: 10px; }
+.ems-avatar-lg { width: 40px; height: 40px; font-size: 14px; }
+.ems-avatar-status { position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--bg-surface); }
+.ems-avatar-online { background: var(--triage-green); }
+.ems-avatar-busy { background: var(--triage-yellow); }
+.ems-avatar-offline { background: var(--text-muted); }
+.ems-avatars { display: inline-flex; }
+.ems-avatars > .ems-avatar + .ems-avatar { margin-left: -8px; box-shadow: 0 0 0 2px var(--bg-surface); }
+
+/* ---------- Field ---------- */
+.ems-field { display: flex; flex-direction: column; gap: var(--space-8); min-width: 0; }
+.ems-field-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-8); }
+.ems-field-tag { font-size: 11px; line-height: 16px; font-weight: 600; color: var(--text-muted); border: 1px solid var(--border-strong); border-radius: var(--radius-full); padding: 0 8px; }
+.ems-field-box { position: relative; display: flex; align-items: center; }
+.ems-input {
+  width: 100%; height: var(--control-md); padding: 0 12px;
+  background: var(--bg-base); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+  color: var(--text-primary); font: 400 14px/20px var(--font-sans);
+}
+.ems-input::placeholder { color: var(--text-muted); }
+.ems-input:hover { border-color: var(--text-muted); }
+.ems-input:focus { outline: none; border-color: var(--action); box-shadow: 0 0 0 3px var(--action-soft); }
+textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-height: 22px; }
+.ems-field-icon .ems-input { padding-left: 40px; }
+.ems-field-box > .ems-icon { position: absolute; left: 12px; color: var(--text-muted); pointer-events: none; }
+.ems-field-box > .ems-field-trail { position: absolute; right: 12px; color: var(--text-muted); display: flex; }
+.ems-field-locked .ems-input { background: var(--bg-surface); border-style: dashed; color: var(--text-muted); }
+.ems-field-hint { font-size: 12px; line-height: 16px; color: var(--text-muted); }
+.ems-suggest {
+  position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 5;
+  background: var(--bg-surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-float); padding: var(--space-4); list-style: none; margin: 0;
+}
+.ems-suggest li { display: flex; gap: var(--space-8); align-items: flex-start; padding: 8px; border-radius: 6px; cursor: pointer; }
+.ems-suggest li:hover, .ems-suggest li[aria-selected="true"] { background: var(--bg-raised); }
+.ems-suggest small { display: block; color: var(--text-muted); font-size: 12px; }
+
+/* ---------- Card ---------- */
+.ems-card {
+  background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg);
+  display: flex; flex-direction: column; min-width: 0; min-height: 0;
+}
+.ems-card-head {
+  display: flex; align-items: center; gap: var(--space-8); min-height: 56px;
+  padding: 12px var(--space-16); border-bottom: 1px solid var(--border-default);
+}
+.ems-card-title { font-size: 15px; line-height: 20px; font-weight: 600; margin: 0; flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-8); }
+.ems-card-title .ems-icon { color: var(--text-muted); }
+.ems-card-sub { display: block; font-size: 12px; font-weight: 400; color: var(--text-muted); }
+.ems-card-actions { display: flex; align-items: center; gap: var(--space-8); }
+.ems-card-body { padding: var(--space-16); flex: 1; min-height: 0; }
+.ems-card-flush > .ems-card-body { padding: 0; }
+.ems-card-scroll > .ems-card-body { overflow: auto; }
+.ems-card-danger { border-color: var(--triage-red-line); }
+.ems-card-success { border-color: var(--triage-green-line); }
+.ems-card-foot { padding: 12px var(--space-16); border-top: 1px solid var(--border-default); display: flex; gap: var(--space-8); align-items: center; }
+
+/* ---------- AppBar / MetaItem ---------- */
+.ems-appbar {
+  height: var(--space-64); flex: none; display: flex; align-items: center; gap: var(--space-24);
+  padding: 0 var(--space-24); background: var(--action); color: var(--action-ink); border-bottom: 1px solid var(--action-hover);
+}
+.ems-appbar-lg { height: 88px; }
+.ems-appbar-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.ems-appbar-mark {
+  width: 36px; height: 36px; border-radius: var(--radius-md); flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent); color: var(--accent-ink); border: 0;
+}
+.ems-appbar-lg .ems-appbar-mark { width: 48px; height: 48px; }
+.ems-appbar-title { font-size: 16px; line-height: 24px; font-weight: 700; white-space: nowrap; }
+.ems-appbar-lg .ems-appbar-title { font-size: 24px; line-height: 32px; }
+.ems-appbar-sub { font-size: 12px; line-height: 16px; color: var(--action-ink); opacity: .85; white-space: nowrap; }
+.ems-appbar-lg .ems-appbar-sub { font-size: 15px; line-height: 20px; }
+.ems-appbar-items { margin-left: auto; display: flex; align-items: center; gap: var(--space-16); }
+.ems-appbar-items > * + * { position: relative; }
+.ems-divider-v { width: 1px; align-self: stretch; background: var(--border-default); margin: 12px 0; }
+.ems-appbar .ems-divider-v { background: var(--action-line); opacity: .5; }
+.ems-appbar .ems-meta > .ems-icon, .ems-appbar .ems-meta-label { color: var(--action-ink); opacity: .85; }
+.ems-appbar .ems-meta-value, .ems-appbar .ems-tone-green, .ems-appbar .ems-tone-info { color: var(--action-ink); }
+.ems-appbar .ems-tone-red, .ems-appbar .ems-tone-yellow { color: var(--accent); }
+.ems-appbar .ems-muted { color: var(--action-ink); opacity: .85; }
+.ems-meta { display: flex; align-items: center; gap: var(--space-8); }
+.ems-meta > .ems-icon { color: var(--text-muted); }
+.ems-meta-text { display: flex; flex-direction: column; }
+.ems-meta-label { font-size: 11px; line-height: 14px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+.ems-meta-value { font-size: 14px; line-height: 20px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ems-meta-lg .ems-meta-value { font-size: 22px; line-height: 28px; }
+.ems-meta-lg .ems-meta-label { font-size: 12px; }
+
+/* ---------- SegmentedTabs ---------- */
+.ems-tabs { display: flex; gap: var(--space-4); padding: var(--space-4); background: var(--bg-base); border: 1px solid var(--border-default); border-radius: var(--radius-lg); }
+.ems-tab {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: var(--space-8);
+  height: var(--control-md); padding: 0 var(--space-16); border: 1px solid transparent; border-radius: var(--radius-md);
+  background: transparent; color: var(--text-muted); font-size: 14px; font-weight: 600; cursor: pointer; position: relative;
+}
+.ems-tab:hover { color: var(--text-primary); background: var(--bg-surface); }
+.ems-tab-num {
+  width: 20px; height: 20px; border-radius: var(--radius-full); font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border-strong);
+}
+.ems-tab[aria-selected="true"] { background: var(--bg-raised); border-color: var(--border-strong); color: var(--text-primary); }
+.ems-tab[aria-selected="true"]::after { content: ""; position: absolute; left: 16px; right: 16px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--action); }
+.ems-tab[aria-selected="true"] .ems-tab-num { background: var(--action); border-color: var(--action); color: var(--action-ink); }
+
+/* ---------- ProbabilityBar ---------- */
+.ems-prob { display: flex; flex-direction: column; gap: var(--space-8); }
+.ems-prob-head { display: flex; align-items: center; gap: var(--space-8); font-weight: 600; }
+.ems-prob-val { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 700; }
+.ems-prob-track { height: 10px; border-radius: var(--radius-full); background: var(--bg-raised); overflow: hidden; }
+.ems-prob-fill { height: 100%; border-radius: inherit; transition: width .6s ease; }
+
+/* ---------- Stepper ---------- */
+.ems-stepper { display: flex; align-items: flex-start; }
+.ems-step { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-8); position: relative; min-width: 0; }
+.ems-step-node {
+  width: 32px; height: 32px; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--border-strong); background: var(--bg-surface); color: var(--text-muted); font-weight: 700; font-size: 13px; z-index: 1;
+}
+.ems-step::before { content: ""; position: absolute; top: 15px; left: 32px; right: 0; height: 2px; background: var(--border-strong); }
+.ems-step:last-child::before { display: none; }
+.ems-step-done::before { background: var(--triage-green); }
+.ems-step-done .ems-step-node { background: var(--triage-green); border-color: var(--triage-green); color: var(--on-success); }
+.ems-step-current .ems-step-node { border-color: var(--action); background: var(--accent); color: var(--accent-ink); box-shadow: 0 0 0 4px var(--action-soft); }
+.ems-step-label { font-size: 13px; line-height: 18px; font-weight: 600; padding-right: 8px; }
+.ems-step-upcoming .ems-step-label { color: var(--text-muted); }
+.ems-step-sub { font-size: 12px; line-height: 16px; color: var(--text-muted); margin-top: -6px; font-variant-numeric: tabular-nums; }
+/* segments variant: large touch bar */
+.ems-segsteps { display: flex; gap: var(--space-8); }
+.ems-segstep {
+  flex: 1; min-height: var(--control-touch); display: flex; align-items: center; gap: 12px; padding: 0 var(--space-16);
+  border-radius: var(--radius-lg); border: 1px solid var(--border-strong); background: var(--bg-surface);
+  color: var(--text-muted); font-size: 16px; font-weight: 600; text-align: left; cursor: pointer;
+}
+.ems-segstep:hover { background: var(--bg-raised); color: var(--text-primary); }
+.ems-segstep .ems-step-node { flex: none; }
+.ems-segstep.ems-step-done { color: var(--text-primary); border-color: var(--triage-green-line); }
+.ems-segstep.ems-step-current { color: var(--action-ink); background: var(--action); border-color: var(--action); }
+.ems-segstep.ems-step-current .ems-step-node { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); box-shadow: none; }
+
+/* ---------- Metric ---------- */
+.ems-metric { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.ems-metric-value { font-variant-numeric: tabular-nums; font-weight: 700; display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.ems-metric-unit { font-size: 14px; font-weight: 600; color: var(--text-muted); }
+.ems-metric-sm .ems-metric-value { font-size: 18px; line-height: 24px; }
+.ems-metric-md .ems-metric-value { font-size: 24px; line-height: 32px; }
+.ems-metric-lg .ems-metric-value { font-size: 32px; line-height: 40px; letter-spacing: -.01em; }
+.ems-metric-xl .ems-metric-value { font-size: 56px; line-height: 56px; letter-spacing: -.02em; }
+.ems-metric-xl .ems-metric-unit { font-size: 20px; }
+.ems-metric-xxl .ems-metric-value { font-size: 96px; line-height: 96px; letter-spacing: -.03em; }
+.ems-metric-xxl .ems-metric-unit { font-size: 24px; }
+.ems-tone-red { color: var(--triage-red-ink); }
+.ems-tone-yellow { color: var(--triage-yellow-ink); }
+.ems-tone-green { color: var(--triage-green-ink); }
+.ems-tone-info { color: var(--action); }
+
+/* ---------- Waveform ---------- */
+.ems-wave { display: inline-flex; align-items: center; gap: 2px; height: 24px; color: var(--action); }
+.ems-wave i { display: block; width: 3px; height: 100%; border-radius: 2px; background: currentColor; transform: scaleY(.3); }
+.ems-wave-on i { animation: ems-wave 1s ease-in-out infinite; }
+.ems-wave-red { color: var(--triage-red); }
+
+/* ---------- TranscriptLine ---------- */
+.ems-tline { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; padding: 12px var(--space-16); border-bottom: 1px solid var(--border-default); align-items: start; }
+.ems-tline:hover { background: var(--bg-raised); }
+.ems-tline-time { font-size: 12px; line-height: 20px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.ems-tline-who { font-size: 12px; line-height: 16px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--action); }
+.ems-tline-who.ems-op { color: var(--text-muted); }
+.ems-tline-text { margin: 2px 0 0; font-size: 14px; line-height: 20px; }
+.ems-tline-critical { background: var(--triage-red-soft); }
+.ems-kw { background: var(--triage-red-soft); color: var(--triage-red-ink); font-weight: 700; border-radius: var(--radius-sm); padding: 0 4px; box-shadow: inset 0 -2px 0 var(--triage-red); }
+
+/* ---------- IncidentStrip ---------- */
+.ems-strip {
+  display: flex; align-items: stretch; background: var(--bg-surface); border: 1px solid var(--triage-red-line);
+  border-radius: var(--radius-lg); position: sticky; top: 0; z-index: 4; overflow: hidden;
+}
+.ems-strip-seg { display: flex; align-items: center; gap: 12px; padding: 12px var(--space-16); border-right: 1px solid var(--border-default); min-width: 0; }
+.ems-strip-seg:last-child { border-right: 0; margin-left: auto; }
+.ems-strip-seg > .ems-icon { color: var(--text-muted); }
+.ems-strip-id { font-size: 20px; line-height: 28px; font-weight: 800; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.ems-strip-live { background: var(--triage-red-soft); }
+
+/* ---------- TriageOptionCard ---------- */
+.ems-topt {
+  width: 100%; display: grid; grid-template-columns: 20px 1fr auto; gap: 12px 16px; align-items: center; text-align: left;
+  padding: var(--space-16); border-radius: var(--radius-lg); border: 1px solid var(--border-default);
+  background: var(--bg-surface); color: var(--text-primary); cursor: pointer; font: inherit;
+}
+.ems-topt:hover { border-color: var(--border-strong); background: var(--bg-raised); }
+.ems-topt .ems-dot { width: 16px; height: 16px; }
+.ems-topt-title { font-size: 16px; line-height: 24px; font-weight: 700; }
+.ems-topt-detail { font-size: 13px; line-height: 18px; color: var(--text-muted); }
+.ems-topt-tags { display: flex; gap: var(--space-8); align-items: center; }
+.ems-topt-check { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--border-strong); display: flex; align-items: center; justify-content: center; color: transparent; }
+.ems-topt[aria-pressed="true"] .ems-topt-check { color: var(--text-primary); }
+.ems-topt-red[aria-pressed="true"] { border: 2px solid var(--triage-red); background: var(--triage-red-soft); padding: 15px; }
+.ems-topt-red[aria-pressed="true"] .ems-topt-check { background: var(--danger-fill); border-color: var(--danger-fill); }
+.ems-topt-yellow[aria-pressed="true"] { border: 2px solid var(--triage-yellow); background: var(--triage-yellow-soft); padding: 15px; }
+.ems-topt-yellow[aria-pressed="true"] .ems-topt-check { background: var(--triage-yellow); border-color: var(--triage-yellow); color: var(--on-warning); }
+.ems-topt-green[aria-pressed="true"] { border: 2px solid var(--triage-green); background: var(--triage-green-soft); padding: 15px; }
+.ems-topt-green[aria-pressed="true"] .ems-topt-check { background: var(--triage-green); border-color: var(--triage-green); color: var(--on-success); }
+.ems-topt-white[aria-pressed="true"], .ems-topt-black[aria-pressed="true"] { border: 2px solid var(--triage-white); padding: 15px; background: var(--bg-raised); }
+.ems-topt-white[aria-pressed="true"] .ems-topt-check, .ems-topt-black[aria-pressed="true"] .ems-topt-check { background: var(--text-primary); border-color: var(--text-primary); color: var(--bg-surface); }
+.ems-topt-compact { padding: 12px var(--space-16); }
+.ems-topt-compact .ems-topt-title { font-size: 15px; line-height: 20px; }
+.ems-tag-ai { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px; border-radius: var(--radius-full); background: var(--action-soft); color: var(--action); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+
+/* ---------- UnitCard ---------- */
+.ems-unit { background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: var(--radius-lg); padding: var(--space-16); display: flex; flex-direction: column; gap: var(--space-16); }
+.ems-unit-primary { border: 2px solid var(--action); padding: 15px; }
+.ems-unit-head { display: flex; align-items: center; gap: 12px; }
+.ems-unit-rank {
+  width: 40px; height: 40px; border-radius: var(--radius-md); flex: none; display: flex; align-items: center; justify-content: center;
+  background: var(--bg-raised); border: 1px solid var(--border-strong); font-weight: 800; font-size: 14px; color: var(--text-muted);
+}
+.ems-unit-primary .ems-unit-rank { background: var(--action); border-color: var(--action); color: var(--action-ink); }
+.ems-unit-name { font-size: 16px; line-height: 24px; font-weight: 700; }
+.ems-unit-base { font-size: 13px; line-height: 18px; color: var(--text-muted); }
+.ems-unit-stats .ems-metric-value { white-space: normal; }
+.ems-unit-stats { display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: var(--space-8); padding: 12px; border-radius: var(--radius-md); background: var(--bg-base); border: 1px solid var(--border-default); }
+.ems-unit-compact { flex-direction: row; align-items: center; padding: 12px var(--space-16); }
+.ems-unit-compact .ems-unit-stats { background: transparent; border: 0; padding: 0; margin-left: auto; grid-template-columns: repeat(2, 72px); }
+.ems-unit-selectable { width: 100%; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.ems-unit-selectable:hover { border-color: var(--border-strong); background: var(--bg-raised); }
+.ems-unit-selectable[aria-pressed="true"] { border: 2px solid var(--action); padding: 15px; background: var(--action-soft); }
+.ems-unit-selectable:disabled { cursor: default; opacity: .6; }
+.ems-unit-radio { width: 28px; height: 28px; flex: none; border-radius: 50%; border: 2px solid var(--border-strong); display: flex; align-items: center; justify-content: center; color: transparent; }
+.ems-unit-selectable[aria-pressed="true"] .ems-unit-radio { background: var(--action); border-color: var(--action); color: var(--action-ink); }
+
+/* ---------- JunctionTimeline ---------- */
+.ems-junctions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ems-junction { display: grid; grid-template-columns: 40px 1fr auto; gap: var(--space-16); align-items: center; position: relative; padding: var(--space-16) 0; }
+.ems-junction + .ems-junction { border-top: 1px dashed var(--border-strong); }
+.ems-junction-node {
+  width: 40px; height: 40px; border-radius: var(--radius-full); display: flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 16px; background: var(--bg-raised); border: 2px solid var(--border-strong); color: var(--text-muted);
+}
+.ems-junction-next .ems-junction-node { border-color: var(--triage-yellow); color: var(--triage-yellow-ink); background: var(--triage-yellow-soft); }
+.ems-junction-green .ems-junction-node { border-color: var(--triage-green); color: var(--on-success); background: var(--triage-green); }
+.ems-junction-name { font-size: 16px; line-height: 24px; font-weight: 700; }
+.ems-junction-meta { font-size: 13px; line-height: 18px; color: var(--text-muted); }
+.ems-junction-eta { text-align: right; }
+.ems-junction-eta b { display: block; font-size: 28px; line-height: 32px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.ems-junction-eta span { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+
+/* ---------- AlertBanner ---------- */
+.ems-alert {
+  display: flex; align-items: center; gap: var(--space-16); padding: var(--space-16) var(--space-24);
+  border-radius: var(--radius-lg); border: 2px solid var(--triage-red); background: var(--triage-red-soft);
+}
+.ems-alert-icon { width: 48px; height: 48px; border-radius: var(--radius-md); flex: none; display: flex; align-items: center; justify-content: center; background: var(--danger-fill); color: var(--on-danger); }
+.ems-alert-title { font-size: 18px; line-height: 24px; font-weight: 800; }
+.ems-alert-desc { font-size: 13px; line-height: 18px; color: var(--text-muted); margin-top: 2px; }
+.ems-alert-actions { margin-left: auto; display: flex; gap: var(--space-8); align-items: center; }
+.ems-alert-flash { animation: ems-flash-red 1.1s ease-in-out infinite; }
+.ems-alert-flash .ems-alert-icon { animation: ems-blink 1.1s steps(2, jump-none) infinite; }
+.ems-alert-warning { border-color: var(--triage-yellow); background: var(--triage-yellow-soft); }
+.ems-alert-warning .ems-alert-icon { background: var(--triage-yellow); color: var(--on-warning); }
+.ems-alert-success { border-color: var(--triage-green); background: var(--triage-green-soft); }
+.ems-alert-success .ems-alert-icon { background: var(--triage-green); color: var(--on-success); }
+.ems-alert-info { border-color: var(--action-line); background: var(--action-soft); }
+.ems-alert-info .ems-alert-icon { background: var(--action); color: var(--action-ink); }
+
+/* ---------- Modal ---------- */
+.ems-scrim { position: absolute; inset: 0; background: var(--bg-overlay); display: flex; align-items: center; justify-content: center; z-index: 20; padding: var(--space-24); }
+.ems-modal { background: var(--bg-surface); border: 1px solid var(--border-strong); border-radius: var(--radius-xl); box-shadow: var(--shadow-modal); width: 100%; max-height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.ems-modal-head { display: flex; align-items: center; gap: 12px; padding: var(--space-16) var(--space-24); border-bottom: 1px solid var(--border-default); }
+.ems-modal-title { font-size: 20px; line-height: 28px; font-weight: 700; margin: 0; flex: 1; }
+.ems-modal-body { padding: var(--space-24); overflow: auto; display: flex; flex-direction: column; gap: var(--space-16); }
+.ems-modal-foot { padding: var(--space-16) var(--space-24); border-top: 1px solid var(--border-default); display: flex; gap: 12px; align-items: center; }
+
+/* ---------- MapView ---------- */
+.ems-map { position: relative; overflow: hidden; background: var(--map-land); min-height: 120px; }
+.ems-map > svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ems-map-block { fill: var(--map-block); }
+.ems-map-park { fill: var(--map-park); }
+.ems-map-water { fill: var(--map-water); }
+.ems-map-major { stroke: var(--map-road-major); fill: none; stroke-linecap: round; }
+.ems-map-label { fill: var(--text-muted); font-family: var(--font-sans); font-weight: 600; letter-spacing: .04em; }
+.ems-map-route-halo { stroke: var(--action-soft); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.ems-map-route { stroke: var(--action); fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.ems-map-alt { stroke: var(--text-muted); fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: .7; }
+.ems-map-jam { stroke: var(--triage-red); fill: none; stroke-linecap: round; opacity: .85; }
+.ems-map-slow { stroke: var(--triage-yellow); fill: none; stroke-linecap: round; opacity: .85; }
+.ems-map-ring { transform-box: fill-box; transform-origin: center; animation: ems-ring 1.8s ease-out infinite; }
+.ems-pin-red { fill: var(--triage-red); }
+.ems-pin-green { fill: var(--triage-green); }
+.ems-pin-info { fill: var(--action); }
+.ems-pin-muted { fill: var(--text-muted); }
+.ems-pin-white { fill: var(--triage-white); }
+.ems-pin-yellow { fill: var(--triage-yellow); }
+.ems-pin-stroke { stroke: var(--bg-surface); }
+.ems-pin-white.ems-pin-stroke { stroke: var(--text-muted); }
+.ems-pin-tag { fill: var(--bg-surface); stroke: var(--border-strong); }
+.ems-pin-tagtext { fill: var(--text-primary); font-family: var(--font-sans); font-weight: 700; }
+.ems-pin-glyph { fill: var(--text-primary); font-family: var(--font-sans); font-weight: 800; }
+.ems-map-overlay { position: absolute; z-index: 2; }
+.ems-float { background: var(--bg-surface); border: 1px solid var(--border-strong); border-radius: var(--radius-xl); box-shadow: var(--shadow-float); }
+.ems-map-legend { display: flex; gap: var(--space-16); padding: 8px 12px; font-size: 12px; color: var(--text-muted); align-items: center; border-radius: var(--radius-md); }
+.ems-map-legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* ---------- App shells (pages) ---------- */
+.ems-app { position: relative; display: flex; flex-direction: column; background: var(--bg-base); overflow: hidden; }
+.ems-app-1440 { width: 1440px; height: 900px; }
+.ems-app-1024 { width: 1024px; height: 768px; }
+.ems-app-390 { width: 390px; height: 844px; }
+.ems-option { width: 100%; display: flex; align-items: center; gap: 12px; min-height: var(--control-touch); padding: 12px var(--space-16); border-radius: var(--radius-lg); border: 1px solid var(--border-strong); background: var(--bg-surface); color: var(--text-primary); font: 600 16px/22px var(--font-sans); text-align: left; cursor: pointer; }
+.ems-option:hover { background: var(--bg-raised); }
+.ems-option[aria-pressed="true"] { border: 2px solid var(--action); padding: 11px 15px; background: var(--action-soft); }
+.ems-option[aria-pressed="true"] .ems-unit-radio { background: var(--action); border-color: var(--action); color: var(--action-ink); }
+.ems-caselist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-8); }
+.ems-caserow { width: 100%; display: grid; grid-template-columns: 96px 1fr auto; gap: var(--space-16); align-items: center; padding: 12px var(--space-16); border-radius: var(--radius-lg); border: 1px solid var(--border-default); background: var(--bg-base); color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; }
+.ems-caserow:hover { background: var(--bg-raised); }
+.ems-caserow[aria-pressed="true"] { border: 2px solid var(--action); padding: 11px 15px; background: var(--action-soft); }
+.ems-caserow-new { border-color: var(--border-default); box-shadow: inset 4px 0 0 var(--accent); }
+.ems-group-head { display: flex; align-items: center; gap: var(--space-8); margin: var(--space-16) 0 var(--space-8); }
+.ems-group-head:first-child { margin-top: 0; }
+.ems-tabbar { flex: none; display: grid; grid-template-columns: 1fr 1fr; background: var(--bg-surface); border-top: 1px solid var(--border-default); }
+.ems-tabbar button { height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border: 0; background: transparent; color: var(--text-muted); font: 600 12px/16px var(--font-sans); cursor: pointer; }
+.ems-tabbar button[aria-selected="true"] { color: var(--action); }
+.ems-footer { flex: none; display: flex; align-items: center; gap: var(--space-16); padding: var(--space-16) var(--space-24); background: var(--bg-surface); border-top: 1px solid var(--border-default); }
+.ems-kv { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 13px; }
+.ems-kv dt { color: var(--text-muted); }
+.ems-kv dd { margin: 0; font-weight: 600; }
+.ems-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: var(--space-16); padding: var(--space-48); color: var(--text-muted); height: 100%; }
+.ems-toast { position: absolute; left: 50%; bottom: 112px; transform: translateX(-50%); z-index: 30; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0s !important; animation-iteration-count: 1 !important; }
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script>/* @ds-bundle: {"format":4,"namespace":"EMS","components":[{"name":"Icon"},{"name":"Button"},{"name":"TriageBadge"},{"name":"StatusPill"},{"name":"KeywordChip"},{"name":"Avatar"},{"name":"Field"},{"name":"ChipInput"},{"name":"Card"},{"name":"AppBar"},{"name":"MetaItem"},{"name":"SegmentedTabs"},{"name":"ProbabilityBar"},{"name":"Stepper"},{"name":"Metric"},{"name":"Waveform"},{"name":"TranscriptLine"},{"name":"IncidentStrip"},{"name":"TriageOptionCard"},{"name":"UnitCard"},{"name":"JunctionTimeline"},{"name":"AlertBanner"},{"name":"Modal"},{"name":"MapView"}]} */
+(function () {
+  var React = window.React;
+  var h = React.createElement;
+  var useState = React.useState, useEffect = React.useEffect, useRef = React.useRef;
+
+  function cx() { return Array.prototype.filter.call(arguments, Boolean).join(' '); }
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function mmss(s) { s = Math.max(0, Math.round(s)); return pad2(Math.floor(s / 60)) + ':' + pad2(s % 60); }
+  function hhmmss(s) { s = ((s % 86400) + 86400) % 86400; return pad2(Math.floor(s / 3600)) + ':' + pad2(Math.floor(s / 60) % 60) + ':' + pad2(s % 60); }
+
+  /* Ticks once a second. dir -1 counts down (stops at 0), +1 counts up. */
+  function useTicker(start, dir, running) {
+    var st = useState(start), v = st[0], set = st[1];
+    useEffect(function () { set(start); }, [start]);
+    useEffect(function () {
+      if (running === false) return;
+      var id = setInterval(function () { set(function (x) { return dir < 0 ? Math.max(0, x - 1) : x + 1; }); }, 1000);
+      return function () { clearInterval(id); };
+    }, [dir, running]);
+    return v;
+  }
+
+  /* The shared live incident. Every app reads the same record. */
+  var CASE = {
+    id: 'EM-104', level: 'red', patient: 'Male, ~30 years', patientShort: 'Male ~30y',
+    mechanism: 'Motorcycle collision with pole', type: 'moi', facts: ['Motorcycle vs pole', 'No helmet', 'High-energy impact'],
+    symptoms: 'Motorcycle collision with pole. Male approx. 30 years, no helmet. Unconscious and not breathing (apnea). Heavy bleeding from the head. Bystander CPR started 14:20:15.',
+    address: 'Front of Building A, Soi Lat Phrao 1',
+    addressShort: 'Soi Lat Phrao 1', coords: [13.8052, 100.5601],
+    keywords: ['Unconscious', 'Apnea'], unit: 'BLS-01', unitBase: 'Lat Phrao Base',
+    hospital: 'Hospital A', dispatcher: 'Navin', operator: '#CT-102'
+  };
+
+  /* ---------------- Icon ---------------- */
+  var C = function (x, y, r) { return 'M' + (x - r) + ' ' + y + 'a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0'; };
+  var ICONS = {
+    phone: ['M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z'],
+    mic: ['M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z', 'M19 10v2a7 7 0 0 1-14 0v-2', 'M12 19v3'],
+    'arrow-right': ['M5 12h14', 'M13 6l6 6-6 6'],
+    'arrow-left': ['M19 12H5', 'M11 6l-6 6 6 6'],
+    'arrow-up': ['M12 20V4', 'M6 10l6-6 6 6'],
+    'turn-left': ['M9 14L4 9l5-5', 'M4 9h10a6 6 0 0 1 6 6v6'],
+    'copy-to': ['M3 12h12', 'M10 6l6 6-6 6', 'M21 4v16'],
+    x: ['M18 6L6 18', 'M6 6l12 12'],
+    check: ['M20 6L9 17l-5-5'],
+    'check-circle': [C(12, 12, 10), 'M8 12.5l2.5 2.5L16 9.5'],
+    lock: ['M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z', 'M8 11V7a4 4 0 0 1 8 0v4'],
+    unlock: ['M6 11h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z', 'M8 11V7a4 4 0 0 1 7.7-1.5'],
+    alert: ['M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z', 'M12 9v4', 'M12 17h.01'],
+    pin: ['M12 22s7-6.2 7-12a7 7 0 0 0-14 0c0 5.8 7 12 7 12z', C(12, 10, 2.5)],
+    search: [C(11, 11, 7), 'M21 21l-4.3-4.3'],
+    clock: [C(12, 12, 10), 'M12 6v6l4 2'],
+    user: [C(12, 7, 4), 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'],
+    users: [C(9, 7, 4), 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2', 'M16 3.1a4 4 0 0 1 0 7.8', 'M23 21v-2a4 4 0 0 0-3-3.9'],
+    ambulance: ['M2 17V7a1 1 0 0 1 1-1h11v11', 'M14 9h4l4 4v4h-2', 'M8 9v4', 'M6 11h4', C(7, 17.5, 2), C(17, 17.5, 2), 'M9 17.5h6'],
+    siren: ['M7 18v-6a5 5 0 0 1 10 0v6', 'M4 18h16v3H4z', 'M12 2v2', 'M4.2 5.2l1.4 1.4', 'M19.8 5.2l-1.4 1.4', 'M12 10v4'],
+    send: ['M22 2L11 13', 'M22 2l-7 20-4-9-9-4z'],
+    hospital: ['M3 21h18', 'M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17', 'M12 7v6', 'M9 10h6', 'M10 21v-4h4v4'],
+    activity: ['M22 12h-4l-3 9L9 3l-3 9H2'],
+    bed: ['M2 20V5', 'M2 16h20', 'M22 20v-8a3 3 0 0 0-3-3h-8v7', C(6.5, 11.5, 2)],
+    radio: [C(12, 12, 2), 'M16.2 7.8a6 6 0 0 1 0 8.4', 'M7.8 16.2a6 6 0 0 1 0-8.4', 'M19.1 4.9a10 10 0 0 1 0 14.2', 'M4.9 19.1a10 10 0 0 1 0-14.2'],
+    navigation: ['M3 11l19-9-9 19-2-8-8-2z'],
+    crosshair: [C(12, 12, 8), 'M12 1v4', 'M12 19v4', 'M1 12h4', 'M19 12h4'],
+    traffic: ['M8 2h8a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z', C(12, 7, 1.5), C(12, 12, 1.5), C(12, 17, 1.5)],
+    'chevron-right': ['M9 6l6 6-6 6'],
+    shield: ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', 'M9 12l2 2 4-4'],
+    'heart-pulse': ['M19 14c1.5-1.5 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4 3 5.5l7 7z', 'M3.5 12H9l1-2 2 4 1-2h7.5'],
+    archive: ['M3 4h18v4H3z', 'M5 8v12h14V8', 'M10 12h4'],
+    gauge: ['M12 14l4-4', 'M3.3 19a10 10 0 1 1 17.4 0'],
+    route: [C(6, 19, 2), C(18, 5, 2), 'M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16'],
+    reroute: ['M3 12a9 9 0 0 1 15-6.7L21 8', 'M21 3v5h-5', 'M21 12a9 9 0 0 1-15 6.7L3 16', 'M3 21v-5h5'],
+    note: ['M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z', 'M14 3v6h6', 'M8 13h8', 'M8 17h5'],
+    plus: ['M12 5v14', 'M5 12h14'],
+    minus: ['M5 12h14'],
+    sparkle: ['M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z', 'M19 17l.7 1.6 1.6.7-1.6.7L19 21.6l-.7-1.6-1.6-.7 1.6-.7z'],
+    layers: ['M12 2L2 7l10 5 10-5z', 'M2 17l10 5 10-5', 'M2 12l10 5 10-5']
+  };
+  function Icon(p) {
+    var size = p.size || 20, d = ICONS[p.name] || ICONS.alert;
+    return h('svg', {
+      className: cx('ems-icon', p.className), width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
+      stroke: 'currentColor', strokeWidth: p.strokeWidth || 2, strokeLinecap: 'round', strokeLinejoin: 'round',
+      'aria-hidden': p.label ? undefined : true, role: p.label ? 'img' : undefined, 'aria-label': p.label, style: p.style
+    }, d.map(function (path, i) { return h('path', { key: i, d: path }); }));
+  }
+  Icon.names = Object.keys(ICONS);
+
+  /* ---------------- Button ---------------- */
+  function Button(p) {
+    var size = p.size || 'md', variant = p.variant || 'primary', iconSize = { sm: 16, md: 18, lg: 20, xl: 24 }[size];
+    var iconOnly = p.icon && !p.children;
+    return h('button', {
+      type: p.type || 'button', onClick: p.onClick, disabled: p.disabled, title: p.title,
+      'aria-label': p['aria-label'] || (iconOnly ? p.title : undefined), 'aria-pressed': p.pressed,
+      className: cx('ems-btn', 'ems-btn-' + variant, 'ems-btn-' + size, p.block && 'ems-btn-block', iconOnly && 'ems-btn-icon',
+        p.round && 'ems-btn-round', p.flashing && 'ems-btn-flash', p.stack && 'ems-btn-stack', p.className),
+      style: p.style
+    },
+      p.icon ? h(Icon, { name: p.icon, size: p.stack ? 28 : iconSize }) : null,
+      p.children,
+      p.iconRight ? h(Icon, { name: p.iconRight, size: iconSize }) : null);
+  }
+
+  /* ---------------- TriageBadge ---------------- */
+  var LEVEL_LABEL = { red: 'Code Red', yellow: 'Code Yellow', green: 'Code Green', white: 'Code White', black: 'Code Black' };
+  function Dot(p) { return h('span', { className: cx('ems-dot', 'ems-dot-' + (p.tone || 'neutral'), p.pulse && 'ems-dot-pulse', p.className), 'aria-hidden': true, style: p.style }); }
+  function TriageBadge(p) {
+    var level = p.level || 'red';
+    return h('span', { className: cx('ems-triage', 'ems-triage-' + level, p.size && 'ems-triage-' + p.size, p.solid && 'ems-triage-solid', p.className) },
+      h(Dot, { tone: level, pulse: p.pulse }), p.children || LEVEL_LABEL[level]);
+  }
+
+  /* ---------------- StatusPill ---------------- */
+  var PILL_DOT = { live: 'green', success: 'green', warning: 'yellow', danger: 'red', info: 'info', neutral: 'neutral' };
+  function StatusPill(p) {
+    var tone = p.tone || 'neutral';
+    var lead = p.loading ? h('span', { className: 'ems-spinner', 'aria-hidden': true })
+      : p.icon ? h(Icon, { name: p.icon, size: p.size === 'lg' ? 18 : 14 })
+        : h(Dot, { tone: PILL_DOT[tone], pulse: p.pulse || tone === 'live' });
+    return h('span', { className: cx('ems-pill', 'ems-pill-' + tone, p.size === 'lg' && 'ems-pill-lg', p.className), role: p.live ? 'status' : undefined }, lead, p.children);
+  }
+
+  /* ---------------- KeywordChip ---------------- */
+  function KeywordChip(p) {
+    var tone = p.tone || 'red';
+    // An AI suggestion: dashed, and only becomes case data when the operator taps it.
+    if (p.suggested) return h('button', { type: 'button', className: cx('ems-chip', 'ems-chip-suggest', p.className), onClick: p.onAccept, 'aria-label': 'Add ' + p.children },
+      h(Icon, { name: 'plus', size: 14 }), p.children);
+    return h('span', { className: cx('ems-chip', tone !== 'red' && 'ems-chip-' + tone, p.onRemove && 'ems-chip-removable', p.className) },
+      tone === 'ondanger' ? null : h(Dot, { tone: tone === 'yellow' ? 'yellow' : tone === 'neutral' ? 'neutral' : 'red' }),
+      p.children,
+      p.onRemove ? h('button', { type: 'button', className: 'ems-chip-x', onClick: p.onRemove, 'aria-label': 'Remove ' + p.children }, h(Icon, { name: 'x', size: 14 })) : null);
+  }
+
+  /* ---------------- Avatar ---------------- */
+  function Avatar(p) {
+    return h('span', { className: cx('ems-avatar', p.size && 'ems-avatar-' + p.size), title: p.name, role: 'img', 'aria-label': p.name },
+      p.initials || (p.name || '?').split(' ').map(function (w) { return w[0]; }).join('').slice(0, 2).toUpperCase(),
+      p.status ? h('span', { className: cx('ems-avatar-status', 'ems-avatar-' + p.status) }) : null);
+  }
+
+  /* ---------------- Field ---------------- */
+  var fieldSeq = 0;
+  function Field(p) {
+    var idRef = useRef(null);
+    if (!idRef.current) idRef.current = 'ems-f' + (++fieldSeq);
+    var st = useState(p.defaultValue != null ? p.defaultValue : ''), v = st[0], set = st[1];
+    var value = p.value != null ? p.value : v;
+    var focus = useState(false);
+    var input = h(p.multiline ? 'textarea' : 'input', {
+      id: idRef.current, className: 'ems-input', value: value, placeholder: p.placeholder, rows: p.rows || 4,
+      readOnly: p.locked || p.readOnly, 'aria-describedby': p.hint ? idRef.current + '-h' : undefined,
+      onChange: function (e) { set(e.target.value); if (p.onChange) p.onChange(e.target.value); },
+      onFocus: function () { focus[1](true); }, onBlur: function () { setTimeout(function () { focus[1](false); }, 150); }
+    });
+    var showSuggest = p.suggestions && p.suggestions.length && focus[0] && !p.locked;
+    return h('div', { className: cx('ems-field', p.icon && 'ems-field-icon', p.locked && 'ems-field-locked', p.className), style: p.style },
+      p.label ? h('div', { className: 'ems-field-head' },
+        h('label', { className: 'ems-label', htmlFor: idRef.current }, p.label),
+        p.tag ? h('span', { className: 'ems-field-tag' }, p.tag) : null) : null,
+      h('div', { className: 'ems-field-box' },
+        p.icon ? h(Icon, { name: p.icon, size: 18 }) : null,
+        input,
+        p.locked ? h('span', { className: 'ems-field-trail' }, h(Icon, { name: 'lock', size: 16 })) : p.trailing ? h('span', { className: 'ems-field-trail' }, p.trailing) : null,
+        showSuggest ? h('ul', { className: 'ems-suggest', role: 'listbox' }, p.suggestions.map(function (s, i) {
+          return h('li', { key: i, role: 'option', 'aria-selected': i === 0, onMouseDown: function () { set(s.title); if (p.onChange) p.onChange(s.title); } },
+            h(Icon, { name: 'pin', size: 16, style: { marginTop: 2, color: 'var(--text-muted)' } }),
+            h('span', null, s.title, s.detail ? h('small', null, s.detail) : null));
+        })) : null),
+      p.hint ? h('div', { className: 'ems-field-hint', id: idRef.current + '-h' }, p.hint) : null);
+  }
+
+  /* ---------------- ChipInput ---------------- */
+  function ChipInput(p) {
+    var idRef = useRef(null);
+    if (!idRef.current) idRef.current = 'ems-f' + (++fieldSeq);
+    var st = useState(p.defaultValue || []), chips = p.value || st[0];
+    var draft = useState('');
+    function set(next) { st[1](next); if (p.onChange) p.onChange(next); }
+    function add(k) {
+      k = (k || '').trim();
+      if (k && !chips.some(function (c) { return c.toLowerCase() === k.toLowerCase(); })) set(chips.concat([k]));
+    }
+    var open = (p.suggestions || []).filter(function (s) { return !chips.some(function (c) { return c.toLowerCase() === s.toLowerCase(); }); });
+    return h('div', { className: cx('ems-field', p.className), style: p.style },
+      p.label ? h('div', { className: 'ems-field-head' }, h('label', { className: 'ems-label', htmlFor: idRef.current }, p.label)) : null,
+      h('div', { className: 'ems-chipin' },
+        chips.map(function (c) {
+          return h(KeywordChip, { key: c, tone: p.tone || 'neutral', onRemove: function () { set(chips.filter(function (x) { return x !== c; })); } }, c);
+        }),
+        h('input', { id: idRef.current, className: 'ems-chipin-input', value: draft[0], placeholder: chips.length ? 'Add more…' : (p.placeholder || 'Type and press Enter'),
+          onChange: function (e) { draft[1](e.target.value); },
+          onKeyDown: function (e) {
+            if (e.key === 'Enter') { e.preventDefault(); add(draft[0]); draft[1](''); }
+            else if (e.key === 'Backspace' && !draft[0] && chips.length) set(chips.slice(0, -1));
+          } })),
+      open.length ? h('div', { className: 'ems-chipin-suggest' },
+        h('span', { className: 'ems-chipin-ai' }, h(Icon, { name: 'sparkle', size: 14 }), 'AI suggests'),
+        open.map(function (s) { return h(KeywordChip, { key: s, suggested: true, onAccept: function () { add(s); } }, s); })) : null);
+  }
+
+  /* ---------------- Card ---------------- */
+  function Card(p) {
+    var hasHead = p.title || p.actions;
+    return h('section', { className: cx('ems-card', p.flush && 'ems-card-flush', p.scroll && 'ems-card-scroll', p.tone && 'ems-card-' + p.tone, p.className), style: p.style, 'aria-label': typeof p.title === 'string' ? p.title : undefined },
+      hasHead ? h('header', { className: 'ems-card-head' },
+        h('h3', { className: 'ems-card-title' }, p.icon ? h(Icon, { name: p.icon, size: 18 }) : null,
+          h('span', null, p.title, p.subtitle ? h('span', { className: 'ems-card-sub' }, p.subtitle) : null)),
+        p.actions ? h('div', { className: 'ems-card-actions' }, p.actions) : null) : null,
+      h('div', { className: 'ems-card-body', style: p.bodyStyle }, p.children),
+      p.footer ? h('footer', { className: 'ems-card-foot' }, p.footer) : null);
+  }
+
+  /* ---------------- AppBar / MetaItem ---------------- */
+  function AppBar(p) {
+    return h('header', { className: cx('ems-appbar', p.size === 'lg' && 'ems-appbar-lg', p.className) },
+      h('div', { className: 'ems-appbar-brand' },
+        h('span', { className: 'ems-appbar-mark' }, h(Icon, { name: p.icon || 'heart-pulse', size: p.size === 'lg' ? 26 : 20 })),
+        h('div', null, h('div', { className: 'ems-appbar-title' }, p.title), p.subtitle ? h('div', { className: 'ems-appbar-sub' }, p.subtitle) : null)),
+      h('div', { className: 'ems-appbar-items' }, React.Children.toArray(p.children).reduce(function (acc, c, i) {
+        if (i) acc.push(h('span', { key: 'd' + i, className: 'ems-divider-v', 'aria-hidden': true }));
+        acc.push(c); return acc;
+      }, [])));
+  }
+  function MetaItem(p) {
+    return h('div', { className: cx('ems-meta', p.size === 'lg' && 'ems-meta-lg', p.className) },
+      p.icon ? h(Icon, { name: p.icon, size: p.size === 'lg' ? 22 : 18 }) : null,
+      p.lead || null,
+      h('div', { className: 'ems-meta-text' },
+        h('span', { className: 'ems-meta-label' }, p.label),
+        h('span', { className: cx('ems-meta-value', p.tone && 'ems-tone-' + p.tone) }, p.value)));
+  }
+  function Clock(p) {
+    var t = useTicker(p.start, 1, p.running);
+    return h('span', { className: 'ems-num' }, p.format === 'mmss' ? mmss(t) : hhmmss(t));
+  }
+
+  /* ---------------- SegmentedTabs ---------------- */
+  function SegmentedTabs(p) {
+    var st = useState(p.defaultValue || (p.items[0] && p.items[0].id)), cur = p.value != null ? p.value : st[0];
+    return h('div', { className: cx('ems-tabs', p.className), role: 'tablist' }, p.items.map(function (it, i) {
+      return h('button', {
+        key: it.id, type: 'button', role: 'tab', 'aria-selected': it.id === cur, className: 'ems-tab',
+        onClick: function () { st[1](it.id); if (p.onChange) p.onChange(it.id); }
+      }, p.numbered !== false ? h('span', { className: 'ems-tab-num' }, i + 1) : null,
+        it.icon ? h(Icon, { name: it.icon, size: 18 }) : null, it.label);
+    }));
+  }
+
+  /* ---------------- ProbabilityBar ---------------- */
+  var LEVEL_VAR = { red: 'var(--triage-red)', yellow: 'var(--triage-yellow)', green: 'var(--triage-green)', white: 'var(--triage-white)', black: 'var(--triage-black)', info: 'var(--action)' };
+  function ProbabilityBar(p) {
+    var level = p.level || 'red';
+    return h('div', { className: 'ems-prob' },
+      h('div', { className: 'ems-prob-head' }, h(Dot, { tone: level }), h('span', null, p.label || LEVEL_LABEL[level]),
+        h('span', { className: cx('ems-prob-val', p.highlight && 'ems-tone-' + level) }, p.value + '%')),
+      h('div', { className: 'ems-prob-track', role: 'meter', 'aria-valuenow': p.value, 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-label': (p.label || LEVEL_LABEL[level]) + ' probability' },
+        h('div', { className: 'ems-prob-fill', style: { width: p.value + '%', background: LEVEL_VAR[level] } })));
+  }
+
+  /* ---------------- Stepper ---------------- */
+  function Stepper(p) {
+    var cur = p.current || 0;
+    function state(i) { return i < cur ? 'done' : i === cur ? 'current' : 'upcoming'; }
+    function node(i) { return h('span', { className: 'ems-step-node' }, i < cur ? h(Icon, { name: 'check', size: 16, strokeWidth: 3 }) : i + 1); }
+    if (p.variant === 'segments') {
+      return h('div', { className: 'ems-segsteps', role: 'list' }, p.steps.map(function (s, i) {
+        return h('button', { key: i, type: 'button', role: 'listitem', 'aria-current': i === cur ? 'step' : undefined, className: cx('ems-segstep', 'ems-step-' + state(i)), onClick: p.onSelect ? function () { p.onSelect(i); } : undefined },
+          node(i), h('span', null, s.label));
+      }));
+    }
+    return h('ol', { className: 'ems-stepper', style: { listStyle: 'none', margin: 0, padding: 0 } }, p.steps.map(function (s, i) {
+      return h('li', { key: i, className: cx('ems-step', 'ems-step-' + state(i)), 'aria-current': i === cur ? 'step' : undefined },
+        node(i), h('span', { className: 'ems-step-label' }, s.label), s.sub ? h('span', { className: 'ems-step-sub' }, s.sub) : null);
+    }));
+  }
+
+  /* ---------------- Metric ---------------- */
+  function Metric(p) {
+    var t = useTicker(p.countdown != null ? p.countdown : p.countup != null ? p.countup : 0, p.countdown != null ? -1 : 1, p.countdown != null || p.countup != null);
+    var value = p.countdown != null || p.countup != null ? mmss(t) : p.value;
+    return h('div', { className: cx('ems-metric', 'ems-metric-' + (p.size || 'md'), p.className), style: p.style },
+      p.label ? h('span', { className: 'ems-label' }, p.label) : null,
+      h('span', { className: cx('ems-metric-value', p.tone && 'ems-tone-' + p.tone), role: p.countdown != null ? 'timer' : undefined }, value,
+        p.unit ? h('span', { className: 'ems-metric-unit' }, p.unit) : null));
+  }
+
+  /* ---------------- Waveform ---------------- */
+  function Waveform(p) {
+    var n = p.bars || 16, bars = [];
+    for (var i = 0; i < n; i++) bars.push(h('i', { key: i, style: { animationDelay: (((i * 37) % 11) / 11 - 1).toFixed(2) + 's', animationDuration: (0.7 + ((i * 53) % 7) / 10).toFixed(2) + 's' } }));
+    return h('span', { className: cx('ems-wave', p.active !== false && 'ems-wave-on', p.tone === 'red' && 'ems-wave-red'), role: 'img', 'aria-label': p.active !== false ? 'Live audio' : 'Audio paused' }, bars);
+  }
+
+  /* ---------------- TranscriptLine ---------------- */
+  function highlight(text, kws) {
+    if (!kws || !kws.length) return text;
+    var re = new RegExp('(' + kws.map(function (k) { return k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')', 'gi');
+    return text.split(re).map(function (part, i) { return i % 2 ? h('mark', { key: i, className: 'ems-kw' }, part) : part; });
+  }
+  function TranscriptLine(p) {
+    var critical = p.keywords && p.keywords.some(function (k) { return p.text.toLowerCase().indexOf(k.toLowerCase()) >= 0; });
+    var isOp = /operator|dispatcher/i.test(p.speaker || '');
+    return h('div', { className: cx('ems-tline', critical && 'ems-tline-critical') },
+      h('span', { className: 'ems-tline-time' }, p.time),
+      h('div', null, h('div', { className: cx('ems-tline-who', isOp && 'ems-op') }, p.speaker), h('p', { className: 'ems-tline-text' }, highlight(p.text, p.keywords))),
+      p.onCopy !== false && !isOp ? h(Button, { variant: 'ghost', size: 'sm', icon: p.copied ? 'check' : 'copy-to', title: 'Copy to intake form', onClick: p.onCopy }) : h('span'));
+  }
+
+  /* ---------------- IncidentStrip ---------------- */
+  function IncidentStrip(p) {
+    var c = p.incident || CASE;
+    return h('div', { className: cx('ems-strip', p.className), role: 'region', 'aria-label': 'Active incident' },
+      h('div', { className: 'ems-strip-seg ems-strip-live' }, h(Dot, { tone: 'red', pulse: true }),
+        h('div', null, h('div', { className: 'ems-label' }, 'Active case'), h('div', { className: 'ems-strip-id' }, '#' + c.id))),
+      h('div', { className: 'ems-strip-seg' }, h(Icon, { name: 'pin', size: 18 }),
+        h('div', null, h('div', { className: 'ems-label' }, 'Incident address'), h('div', { style: { fontWeight: 600 } }, c.addressShort))),
+      h('div', { className: 'ems-strip-seg' }, p.level === null ? h(StatusPill, { size: 'lg' }, 'Awaiting triage') : h(TriageBadge, { level: p.level || c.level, size: 'lg', solid: true })),
+      h('div', { className: 'ems-strip-seg' }, h(Icon, { name: 'ambulance', size: 18 }),
+        h('div', null, h('div', { className: 'ems-label' }, 'Assigned unit'), h('div', { style: { fontWeight: 600 }, className: 'ems-num' }, p.unitText || (c.unit + ' (ETA: 3 min)')))),
+      h('div', { className: 'ems-strip-seg' }, h(StatusPill, { tone: 'info', icon: 'lock' }, 'Locked by ' + (p.lockedBy || c.dispatcher))));
+  }
+
+  /* ---------------- TriageOptionCard ---------------- */
+  function TriageOptionCard(p) {
+    var level = p.level || 'red';
+    return h('button', { type: 'button', className: cx('ems-topt', 'ems-topt-' + level, p.compact && 'ems-topt-compact'), 'aria-pressed': !!p.selected, onClick: p.onSelect },
+      h(Dot, { tone: level }),
+      h('div', null,
+        h('div', { className: 'ems-topt-tags' }, h('span', { className: 'ems-topt-title' }, p.title || LEVEL_LABEL[level]), p.suggested ? h('span', { className: 'ems-tag-ai' }, h(Icon, { name: 'sparkle', size: 12 }), 'AI suggested') : null),
+        h('div', { className: 'ems-topt-detail' }, p.detail)),
+      h('div', { className: 'ems-topt-tags' }, p.meta ? h('span', { className: 'ems-topt-detail', style: { textAlign: 'right' } }, p.meta) : null,
+        h('span', { className: 'ems-topt-check', 'aria-hidden': true }, h(Icon, { name: 'check', size: 16, strokeWidth: 3 }))));
+  }
+
+  /* ---------------- UnitCard ---------------- */
+  function UnitCard(p) {
+    var stats = [h(Metric, { key: 'd', size: 'sm', label: 'Distance', value: p.distance }), h(Metric, { key: 'e', size: 'sm', label: 'ETA', value: p.eta, tone: p.primary ? 'info' : undefined })];
+    if (!p.compact) stats.push(h(Metric, { key: 'q', size: 'sm', label: 'Equipment', value: p.equipment, style: { minWidth: 0 } }));
+    var selectable = !!p.onSelect;
+    return h(selectable ? 'button' : 'article', { type: selectable ? 'button' : undefined, onClick: p.onSelect, 'aria-pressed': selectable ? !!p.selected : undefined, disabled: selectable ? p.disabled : undefined,
+      className: cx('ems-unit', p.primary && 'ems-unit-primary', p.compact && 'ems-unit-compact', selectable && 'ems-unit-selectable') },
+      h('div', { className: 'ems-unit-head' },
+        p.rank ? h('span', { className: 'ems-unit-rank', 'aria-label': 'Rank ' + p.rank }, p.rank)
+          : selectable ? h('span', { className: 'ems-unit-radio', 'aria-hidden': true }, h(Icon, { name: 'check', size: 16, strokeWidth: 3 })) : null,
+        h('div', { style: { minWidth: 0 } },
+          h('div', { className: 'ems-row', style: { gap: 8 } }, h('span', { className: 'ems-unit-name' }, 'Unit ' + p.unit), p.badge || null),
+          h('div', { className: 'ems-unit-base' }, p.base + (p.compact ? ' · ' + p.equipment : '')))),
+      h('div', { className: 'ems-unit-stats' }, stats),
+      p.action || null);
+  }
+
+  /* ---------------- JunctionTimeline ---------------- */
+  function JunctionRow(p) {
+    var t = useTicker(p.item.eta, -1, p.running !== false);
+    var cls = p.cleared ? 'ems-junction-green' : p.index === 0 ? 'ems-junction-next' : '';
+    return h('li', { className: cx('ems-junction', cls) },
+      h('span', { className: 'ems-junction-node' }, p.cleared ? h(Icon, { name: 'check', size: 20, strokeWidth: 3 }) : p.index + 1),
+      h('div', null, h('div', { className: 'ems-junction-name' }, p.item.name),
+        h('div', { className: 'ems-row', style: { marginTop: 4 } },
+          p.cleared ? h(StatusPill, { tone: 'success' }, 'Green hold active') : p.index === 0 ? h(StatusPill, { tone: 'warning', pulse: true }, 'Next junction') : h(StatusPill, null, 'Queued'),
+          p.item.note ? h('span', { className: 'ems-junction-meta' }, p.item.note) : null)),
+      h('div', { className: 'ems-junction-eta' }, h('span', null, 'ETA'), h('b', { role: 'timer', className: p.index === 0 && !p.cleared ? 'ems-tone-yellow' : undefined }, mmss(t))));
+  }
+  function JunctionTimeline(p) {
+    return h('ol', { className: 'ems-junctions' }, p.items.map(function (it, i) {
+      return h(JunctionRow, { key: it.name, item: it, index: i, cleared: p.cleared, running: p.running });
+    }));
+  }
+
+  /* ---------------- AlertBanner ---------------- */
+  function AlertBanner(p) {
+    var tone = p.tone || 'danger';
+    return h('div', { className: cx('ems-alert', tone !== 'danger' && 'ems-alert-' + tone, p.flashing && 'ems-alert-flash', p.className), role: tone === 'danger' ? 'alert' : 'status' },
+      h('span', { className: 'ems-alert-icon' }, h(Icon, { name: p.icon || (tone === 'success' ? 'check-circle' : 'siren'), size: 26 })),
+      h('div', { style: { minWidth: 0 } }, h('div', { className: 'ems-alert-title' }, p.title), p.children ? h('div', { className: 'ems-alert-desc' }, p.children) : null),
+      p.actions ? h('div', { className: 'ems-alert-actions' }, p.actions) : null);
+  }
+
+  /* ---------------- Modal ---------------- */
+  function Modal(p) {
+    if (p.open === false) return null;
+    return h('div', { className: 'ems-scrim', onClick: function (e) { if (e.target === e.currentTarget && p.onClose) p.onClose(); } },
+      h('div', { className: 'ems-modal', role: 'dialog', 'aria-modal': true, 'aria-label': p.title, style: { maxWidth: p.width || 560 } },
+        h('div', { className: 'ems-modal-head' }, p.icon ? h(Icon, { name: p.icon, size: 22, style: { color: 'var(--action)' } }) : null,
+          h('h2', { className: 'ems-modal-title' }, p.title),
+          p.onClose ? h(Button, { variant: 'ghost', icon: 'x', title: 'Close', onClick: p.onClose }) : null),
+        h('div', { className: 'ems-modal-body' }, p.children),
+        p.footer ? h('div', { className: 'ems-modal-foot' }, p.footer) : null));
+  }
+
+  /* ---------------- MapView ---------------- */
+  var XS = [0, 110, 230, 340, 470, 590, 700, 800], YS = [0, 80, 190, 290, 400, 500];
+  var ROADS = [
+    { d: 'M-20 190H820', name: 'LAT PHRAO RD', at: [60, 182] },
+    { d: 'M230 -20V520', name: 'PHAHONYOTHIN RD', at: [238, 470], v: true },
+    { d: 'M470 -20V520', name: 'RATCHADAPHISEK RD', at: [478, 470], v: true },
+    { d: 'M700 190V520', name: 'CHOK CHAI 4', at: [708, 470], v: true },
+    { d: 'M-20 400C200 380 520 420 820 360', name: '', at: null }
+  ];
+  function MapPin(p) {
+    var k = p.k, x = p.x, y = p.y, kind = p.kind, out = [];
+    if (kind === 'incident' || kind === 'incident-locked') {
+      var tone = kind === 'incident' ? 'ems-pin-red' : 'ems-pin-green';
+      out.push(h('circle', { key: 'r', cx: x, cy: y, r: 22 * k, className: cx(tone, 'ems-map-ring'), opacity: .5 }));
+      out.push(h('circle', { key: 'c', cx: x, cy: y, r: 10 * k, className: cx(tone, 'ems-pin-stroke'), strokeWidth: 3 * k }));
+      if (kind === 'incident-locked') out.push(h('path', { key: 'k', d: 'M' + (x - 4 * k) + ' ' + y + 'l' + 3 * k + ' ' + 3 * k + 'l' + 5 * k + ' ' + (-6 * k), stroke: 'var(--on-success)', strokeWidth: 2 * k, fill: 'none', strokeLinecap: 'round' }));
+    } else if (kind === 'unit' || kind === 'unit-busy' || kind === 'unit-alt') {
+      var t2 = kind === 'unit' ? 'ems-pin-info' : kind === 'unit-alt' ? 'ems-pin-white' : 'ems-pin-muted';
+      out.push(h('rect', { key: 'u', x: x - 9 * k, y: y - 9 * k, width: 18 * k, height: 18 * k, rx: 5 * k, className: cx(t2, 'ems-pin-stroke'), strokeWidth: 2.5 * k }));
+    } else if (kind === 'hospital') {
+      out.push(h('rect', { key: 'h', x: x - 12 * k, y: y - 12 * k, width: 24 * k, height: 24 * k, rx: 6 * k, className: 'ems-pin-white ems-pin-stroke', strokeWidth: 2.5 * k }));
+      out.push(h('text', { key: 't', x: x, y: y + 5 * k, textAnchor: 'middle', fontSize: 14 * k, className: 'ems-pin-glyph' }, 'H'));
+    } else if (kind === 'vehicle') {
+      out.push(h('circle', { key: 'v', cx: x, cy: y, r: 26 * k, fill: 'var(--action-soft)' }));
+      out.push(h('path', { key: 'a', transform: 'translate(' + x + ' ' + y + ') rotate(' + (p.heading || 0) + ') scale(' + k + ')', d: 'M0 -16L12 13L0 6L-12 13Z', className: 'ems-pin-info ems-pin-stroke', strokeWidth: 2.5, strokeLinejoin: 'round' }));
+    } else if (kind === 'junction' || kind === 'junction-green' || kind === 'junction-next') {
+      var t3 = kind === 'junction-green' ? 'var(--triage-green)' : kind === 'junction-next' ? 'var(--triage-yellow)' : 'var(--text-muted)';
+      out.push(h('circle', { key: 'j', cx: x, cy: y, r: 9 * k, fill: 'var(--bg-surface)', stroke: t3, strokeWidth: 3 * k }));
+      if (p.n) out.push(h('text', { key: 'n', x: x, y: y + 4 * k, textAnchor: 'middle', fontSize: 11 * k, fill: 'var(--text-primary)', fontWeight: 800, fontFamily: 'var(--font-sans)' }, p.n));
+    }
+    if (p.label) {
+      var w = (p.label.length * 6.6 + 14) * k, ty = y - (kind === 'vehicle' ? 34 : 24) * k;
+      out.push(h('rect', { key: 'lt', x: x - w / 2, y: ty - 18 * k, width: w, height: 20 * k, rx: 5 * k, className: 'ems-pin-tag', strokeWidth: 1 * k }));
+      out.push(h('text', { key: 'll', x: x, y: ty - 4.5 * k, textAnchor: 'middle', fontSize: 11 * k, className: 'ems-pin-tagtext' }, p.label));
+    }
+    return h('g', null, out);
+  }
+  function pts(a) { return a.map(function (q) { return q[0] + ',' + q[1]; }).join(' '); }
+  function MapView(p) {
+    var view = p.view || [0, 0, 800, 500], k = view[2] / 800 * (p.pinScale || 1);
+    var blocks = [];
+    for (var i = 0; i < XS.length - 1; i++) for (var j = 0; j < YS.length - 1; j++) {
+      var x0 = XS[i] + 6, y0 = YS[j] + 6, w = XS[i + 1] - XS[i] - 12, hh = YS[j + 1] - YS[j] - 12;
+      var park = (i === 1 && j === 3) || (i === 5 && j === 0);
+      // split larger blocks with a minor lane so the grid reads as a city
+      if (w > 100 && !park) {
+        blocks.push(h('rect', { key: i + '-' + j + 'a', x: x0, y: y0, width: w / 2 - 3, height: hh, rx: 3, className: 'ems-map-block' }));
+        blocks.push(h('rect', { key: i + '-' + j + 'b', x: x0 + w / 2 + 3, y: y0, width: w / 2 - 3, height: hh, rx: 3, className: 'ems-map-block' }));
+      } else blocks.push(h('rect', { key: i + '-' + j, x: x0, y: y0, width: w, height: hh, rx: 3, className: park ? 'ems-map-park' : 'ems-map-block' }));
+    }
+    var children = [
+      h('g', { key: 'blocks' }, blocks),
+      h('path', { key: 'water', className: 'ems-map-water', d: 'M-20 452C120 430 260 470 420 448S700 420 820 436V520H-20Z' }),
+      h('g', { key: 'roads' }, ROADS.map(function (r, i2) { return h('path', { key: i2, d: r.d, className: 'ems-map-major', strokeWidth: i2 === 4 ? 6 : 14 }); })),
+      p.labels !== false ? h('g', { key: 'labels' }, ROADS.filter(function (r) { return r.at; }).map(function (r, i3) {
+        return h('text', { key: i3, x: r.at[0], y: r.at[1], fontSize: 10 * Math.max(k, .55), className: 'ems-map-label', transform: r.v ? 'rotate(-90 ' + r.at[0] + ' ' + r.at[1] + ')' : undefined }, r.name);
+      })) : null
+    ];
+    (p.congestion || []).forEach(function (c, i4) { children.push(h('polyline', { key: 'c' + i4, points: pts(c.points), className: c.level === 'slow' ? 'ems-map-slow' : 'ems-map-jam', strokeWidth: 7 * k, strokeDasharray: (10 * k) + ' ' + (6 * k) })); });
+    if (p.altRoute) children.push(h('polyline', { key: 'alt', points: pts(p.altRoute), className: 'ems-map-alt', strokeWidth: 4 * k, strokeDasharray: (2 * k) + ' ' + (8 * k) }));
+    if (p.route) {
+      children.push(h('polyline', { key: 'rh', points: pts(p.route), className: 'ems-map-route-halo', strokeWidth: 18 * k }));
+      children.push(h('polyline', { key: 'r', points: pts(p.route), className: 'ems-map-route', strokeWidth: 6 * k }));
+    }
+    (p.pins || []).forEach(function (pin, i5) { children.push(h(MapPin, Object.assign({ key: 'p' + i5, k: k }, pin))); });
+    return h('div', { className: cx('ems-map', p.className), style: Object.assign({ height: p.height || '100%', borderRadius: p.radius }, p.style), role: 'img', 'aria-label': p.ariaLabel || 'Map' },
+      h('svg', { viewBox: view.join(' '), preserveAspectRatio: 'xMidYMid slice' }, children),
+      p.children);
+  }
+  function MapOverlay(p) { return h('div', { className: cx('ems-map-overlay', p.float !== false && 'ems-float', p.className), style: p.style }, p.children); }
+
+  var api = {
+    Icon: Icon, Button: Button, TriageBadge: TriageBadge, StatusPill: StatusPill, KeywordChip: KeywordChip, Avatar: Avatar,
+    Field: Field, ChipInput: ChipInput, Card: Card, AppBar: AppBar, MetaItem: MetaItem, SegmentedTabs: SegmentedTabs, ProbabilityBar: ProbabilityBar,
+    Stepper: Stepper, Metric: Metric, Waveform: Waveform, TranscriptLine: TranscriptLine, IncidentStrip: IncidentStrip,
+    TriageOptionCard: TriageOptionCard, UnitCard: UnitCard, JunctionTimeline: JunctionTimeline, AlertBanner: AlertBanner,
+    Modal: Modal, MapView: MapView,
+    /* helpers, not catalogue components */
+    Dot: Dot, Clock: Clock, MapOverlay: MapOverlay, useTicker: useTicker, mmss: mmss, hhmmss: hhmmss, cx: cx,
+    LEVEL_LABEL: LEVEL_LABEL, CASE: CASE
+  };
+  window.EMS = window.EMS || {};
+  Object.assign(window.EMS, api);
+})();
+
+/* ---- Screens: the five apps of the Case #EM-104 ecosystem, composed only from the components above. ---- */
+(function () {
+  var E = window.EMS, React = window.React, h = React.createElement, useState = React.useState, useEffect = React.useEffect;
+  var CASE = E.CASE;
+  var KW = ['unconscious', 'not breathing', 'bleeding from his head', 'CPR'];
+  var grid = function (cols, extra) { return Object.assign({ display: 'grid', gridTemplateColumns: cols, gap: 16, minHeight: 0 }, extra); };
+  /* Case Type: every case is exactly one of these, chosen at Intake. */
+  var TYPE_LABEL = { moi: 'Mechanism of Injury', noi: 'Nature of Illness' };
+  var TYPE_HINT = { moi: 'How did the injury happen?', noi: 'What is the medical complaint?' };
+  var TYPE_SUGGEST = { moi: ['Motorcycle vs pole', 'No helmet', 'High-energy impact'], noi: ['Unconscious', 'Not breathing', 'Head bleeding'] };
+
+  /* 1. EMS Call Intake (1440 x 900) */
+  function Intake() {
+    var kw = useState(CASE.keywords), locked = useState(false), sent = useState(false), copied = useState({});
+    var type = useState(null), facts = useState([]), switchTo = useState(null);
+    /* Changing type clears the chips, so ask first when there are any. */
+    function pickType(t) {
+      if (t === type[0]) return;
+      if (facts[0].length) switchTo[1](t); else type[1](t);
+    }
+    var lines = [
+      ['14:19:51', 'Operator', '1669 emergency. What is your emergency?'],
+      ['14:19:55', 'Caller', 'There is an accident in front of Building A, Soi Lat Phrao 1.'],
+      ['14:20:02', 'Caller', 'Motorcycle hit a pole.'],
+      ['14:20:06', 'Caller', 'The victim is unconscious and not breathing.'],
+      ['14:20:11', 'Operator', 'Is anyone with you able to start CPR?'],
+      ['14:20:15', 'Caller', 'A man is starting CPR now. There is a lot of bleeding from his head.'],
+      ['14:20:21', 'Operator', 'Stay on the line. Help is being arranged.'],
+      ['14:20:30', 'Caller', 'He is about thirty. No helmet.']
+    ];
+    var pin = locked[0] ? 'incident-locked' : 'incident';
+    return h('div', { className: 'ems-app ems-app-1440' },
+      h(E.AppBar, { title: 'EMS 1669 Call Intake', subtitle: 'Bangkok Emergency Medical Command', icon: 'phone' },
+        h(E.MetaItem, { label: 'Draft case', value: '#' + CASE.id, icon: 'note' }),
+        h(E.MetaItem, { label: 'Operator', value: CASE.operator, lead: h(E.Avatar, { name: 'CT 102', initials: 'CT', status: 'online' }) }),
+        h(E.MetaItem, { label: 'Call Time', value: h(E.Clock, { start: 105, format: 'mmss' }), icon: 'clock', tone: 'red' }),
+        h(E.StatusPill, { tone: 'live', size: 'lg' }, 'System Live')),
+      h('main', { style: grid('296px 1fr 336px', { flex: 1, padding: 16 }) },
+        /* Left: audio log */
+        h(E.Card, { title: 'Live Voice Transcript Log', subtitle: 'Line 1669-04 · auto-transcribe', icon: 'mic', flush: true, scroll: true,
+          actions: h(E.Waveform, { tone: 'red' }) },
+          lines.map(function (l, i) {
+            return h(E.TranscriptLine, { key: i, time: l[0], speaker: l[1], text: l[2], keywords: KW, copied: copied[0][i],
+              onCopy: function () { var c = Object.assign({}, copied[0]); c[i] = true; copied[1](c); } });
+          }),
+          h('div', { className: 'ems-row', style: { padding: 16, color: 'var(--text-muted)' } }, h(E.Waveform, { bars: 10 }), 'Listening…')),
+        /* Center: facts only. Intake never sets a triage code; the dispatcher does. */
+        h(E.Card, { title: 'Patient & Incident Intake', subtitle: 'Draft case #' + CASE.id + ' · facts only, triage is set by Dispatch', icon: 'user', scroll: true },
+          h('div', { className: 'ems-col' },
+            h('div', { style: { padding: 16, borderRadius: 12, border: '1px solid var(--triage-red-line)', background: 'var(--bg-base)' } },
+              h('div', { className: 'ems-row', style: { marginBottom: 12, justifyContent: 'space-between' } },
+                h('span', { className: 'ems-row', style: { fontWeight: 700 } }, h(E.Icon, { name: 'sparkle', size: 18, style: { color: 'var(--action)' } }), 'AI Detected Critical Keywords'),
+                h('span', { className: 'ems-muted', style: { fontSize: 12 } }, 'Auto-extracted · dismiss false positives')),
+              h('div', { className: 'ems-row' }, kw[0].length ? kw[0].map(function (k) {
+                return h(E.KeywordChip, { key: k, onRemove: function () { kw[1](kw[0].filter(function (x) { return x !== k; })); } }, k);
+              }) : h('span', { className: 'ems-muted' }, 'No critical keywords. ', h('button', { className: 'ems-btn ems-btn-ghost ems-btn-sm', onClick: function () { kw[1](CASE.keywords); } }, 'Restore')))),
+            h('div', { style: grid('1fr 1fr') },
+              h(E.Field, { label: 'Caller Name', defaultValue: 'Somchai Jaidee', icon: 'user' }),
+              h(E.Field, { label: 'Contact Number', defaultValue: '081-xxx-xxxx', icon: 'phone' }),
+              h(E.Field, { label: 'Patient Demographics', defaultValue: CASE.patient }),
+              h(E.Field, { label: 'U / D', tag: 'Optional', defaultValue: 'Unknown / None recorded' })),
+            h(E.Field, { label: 'Symptom Description', multiline: true, rows: 4, defaultValue: CASE.symptoms }),
+            h('div', { className: 'ems-col', style: { gap: 8 } },
+              h('div', { className: 'ems-field-head' }, h('span', { className: 'ems-label' }, 'Case Type'), h('span', { className: 'ems-field-tag' }, 'Required · pick one')),
+              h('div', { role: 'radiogroup', 'aria-label': 'Case Type', style: grid('1fr 1fr', { gap: 8 }) }, ['moi', 'noi'].map(function (t) {
+                return h('button', { key: t, type: 'button', role: 'radio', className: 'ems-option', 'aria-checked': type[0] === t, 'aria-pressed': type[0] === t, onClick: function () { pickType(t); } },
+                  h('span', { className: 'ems-unit-radio', 'aria-hidden': true }, h(E.Icon, { name: 'check', size: 16, strokeWidth: 3 })), TYPE_LABEL[t]);
+              })),
+              type[0]
+                ? h(E.ChipInput, { key: type[0], value: facts[0], onChange: facts[1], placeholder: TYPE_HINT[type[0]] + ' Type and press Enter', suggestions: TYPE_SUGGEST[type[0]] })
+                : h('div', { className: 'ems-chipin', 'aria-disabled': true, style: { color: 'var(--text-muted)', background: 'var(--bg-base)' } }, 'Pick Mechanism of Injury or Nature of Illness to add keywords'))),
+            h(E.Modal, { open: !!switchTo[0], title: 'Switch to ' + TYPE_LABEL[switchTo[0]] + '?', icon: 'alert', width: 520, onClose: function () { switchTo[1](null); },
+              footer: [h(E.Button, { key: 'c', variant: 'secondary', size: 'xl', onClick: function () { switchTo[1](null); } }, 'Cancel'),
+                h(E.Button, { key: 's', variant: 'danger', size: 'xl', style: { flex: 1 }, onClick: function () { type[1](switchTo[0]); facts[1]([]); switchTo[1](null); } }, 'Switch & Remove Keywords')] },
+              h('div', null, facts[0].length + ' ' + (type[0] === 'moi' ? 'injury' : 'illness') + ' keyword' + (facts[0].length === 1 ? '' : 's') + ' will be removed: ' + facts[0].join(', ') + '.'))),
+        /* Right: location lock */
+        h(E.Card, { title: 'Location Lock', icon: 'pin', actions: h(E.StatusPill, { tone: 'info', icon: 'crosshair' }, 'Accuracy: High (GPS)'), bodyStyle: { display: 'flex', flexDirection: 'column', gap: 16 } },
+          h(E.Field, { icon: 'search', defaultValue: CASE.address, locked: locked[0], label: 'Search address or landmark',
+            suggestions: [{ title: CASE.address, detail: 'Chatuchak, Bangkok 10900 · 12 m from caller GPS' }, { title: 'Building A, Lat Phrao Soi 1 (rear gate)', detail: 'Chatuchak, Bangkok · 48 m' }] }),
+          h(E.MapView, { height: 200, radius: 12, view: [210, 150, 260, 162], pinScale: 1.7, ariaLabel: 'Incident location map',
+            pins: [{ kind: pin, x: 340, y: 236, label: locked[0] ? 'Locked' : 'Caller GPS' }] },
+            h(E.MapOverlay, { style: { left: 12, bottom: 12, padding: '8px 12px', borderRadius: 8 } },
+              h('div', { className: 'ems-label' }, 'Coordinates'),
+              h('div', { className: 'ems-num', style: { fontWeight: 700 } }, '[' + CASE.coords.join(', ') + ']')),
+            h(E.MapOverlay, { style: { right: 12, top: 12, display: 'flex', flexDirection: 'column', padding: 4, borderRadius: 8 } },
+              h(E.Button, { variant: 'ghost', size: 'sm', icon: 'plus', title: 'Zoom in' }), h(E.Button, { variant: 'ghost', size: 'sm', icon: 'minus', title: 'Zoom out' }))),
+          h('div', { style: { padding: 16, borderRadius: 12, background: 'var(--bg-base)', border: '1px solid ' + (locked[0] ? 'var(--triage-green-line)' : 'var(--triage-yellow-line)'), display: 'flex', flexDirection: 'column', gap: 12 } },
+            h('div', { className: 'ems-row', style: { justifyContent: 'space-between' } },
+              h('span', { className: 'ems-label' }, 'Two-step verification'),
+              locked[0] ? h(E.StatusPill, { tone: 'success', icon: 'check-circle' }, 'Verified & Locked') : h(E.StatusPill, { tone: 'warning', icon: 'alert' }, 'Unverified Location')),
+            h(E.Stepper, { current: locked[0] ? 2 : 1, steps: [{ label: 'Caller confirms landmark', sub: '14:20:40' }, { label: 'Operator locks pin', sub: locked[0] ? '14:21:02' : 'Pending' }] }),
+            locked[0]
+              ? h(E.Button, { variant: 'outline', size: 'lg', block: true, icon: 'unlock', onClick: function () { locked[1](false); } }, 'Unlock to Edit Coordinates')
+              : h(E.Button, { variant: 'success', size: 'lg', block: true, icon: 'lock', onClick: function () { locked[1](true); } }, 'Confirm Location')))),
+      h('footer', { className: 'ems-footer' },
+        h(E.Button, { variant: 'danger-outline', size: 'xl', icon: 'x' }, 'Cancel Incident'),
+        h('div', { className: 'ems-muted', style: { fontSize: 13, maxWidth: 260 } }, !type[0] ? 'Pick a Case Type before submitting.' : locked[0] ? 'All required fields complete. Location locked.' : 'Confirm the location before submitting so the unit routes to a locked pin.'),
+        h(E.Button, { variant: 'primary', size: 'xl', icon: sent[0] ? 'check' : 'send', disabled: !type[0], style: { flex: 1 }, onClick: function () { sent[1](true); } },
+          sent[0] ? 'Sent to Dispatch Central · #' + CASE.id : 'Submit Case to Dispatch Central')));
+  }
+
+  /* 2. Dispatch (1440 x 900): Case Board first, then the Command Center for one case */
+  var STATUS = [
+    ['triage', 'Awaiting triage', 'warning'], ['declined', 'Unit declined', 'danger'], ['enroute', 'Dispatched / En route', 'info'],
+    ['onboard', 'Patient onboard', 'info'], ['hospital', 'At hospital', 'success']
+  ];
+  var CASES = [
+    { id: CASE.id, status: 'triage', isNew: true, received: '14:21:05', operator: CASE.operator, patient: CASE.patient, address: CASE.address, symptoms: CASE.symptoms, type: CASE.type, facts: CASE.facts },
+    { id: 'EM-105', status: 'triage', isNew: true, received: '14:21:40', operator: '#CT-107', patient: 'Female, ~70 years', address: 'Soi Phahonyothin 24, Chatuchak',
+      symptoms: 'Fell at home, hip pain, unable to stand. Conscious and breathing normally.', type: 'moi', facts: ['Fall from standing'] },
+    { id: 'EM-103', status: 'declined', level: 'yellow', received: '14:15:12', operator: '#CT-102', patient: 'Male, ~45 years', address: 'Ratchadaphisek Rd near MRT Lat Phrao',
+      symptoms: 'Chest pain spreading to the left arm, sweating. Conscious.', type: 'noi', facts: ['Chest pain', 'Left arm pain'], hospital: 'Hospital A', note: 'ALS-02 declined · Vehicle fault · Hospital A kept' },
+    { id: 'EM-101', status: 'enroute', level: 'yellow', received: '14:06:48', operator: '#CT-104', patient: 'Child, ~8 years', address: 'Chok Chai 4 Market',
+      symptoms: 'Swelling of the lips and wheeze after eating at a food stall.', type: 'noi', facts: ['Food allergy', 'Wheeze'], hospital: "Hospital E (Children's)", note: "ALS-06 · ETA 4 min → Hospital E (Children's)" },
+    { id: 'EM-099', status: 'onboard', level: 'green', received: '13:58:20', operator: '#CT-107', patient: 'Male, ~25 years', address: 'Lat Phrao Rd at Soi 15',
+      symptoms: 'Low-speed collision, forearm deformity, alert and talking.', type: 'moi', facts: ['Car vs motorcycle, low speed'], hospital: 'Hospital B', note: 'BLS-03 → Hospital B' },
+    { id: 'EM-097', status: 'hospital', level: 'red', received: '13:41:02', operator: '#CT-104', patient: 'Female, ~55 years', address: 'Vibhavadi Rangsit Rd, Chatuchak',
+      symptoms: 'Sudden weakness of the right arm and slurred speech.', type: 'noi', facts: ['Arm weakness', 'Slurred speech'], hospital: 'Hospital D (Neurological Institute)', note: 'ALS-01 · Hospital D 14:12' }
+  ];
+  /* Sorted by drive ETA from the scene. A fact, not a ranking. */
+  var HOSPITALS = [
+    { name: 'Hospital A', short: 'A', dist: '3.2 km', eta: '6 min', er: 'Ready', tone: 'success', note: 'Level 1 trauma · Neurosurgery on call · CT', x: 120, y: 120, route: [[340, 236], [340, 190], [230, 190], [230, 120], [120, 120]] },
+    { name: 'Hospital B', short: 'B', dist: '5.0 km', eta: '10 min', er: 'Moderate', tone: 'warning', note: 'General ER · No on-site neurosurgery', x: 590, y: 80, route: [[340, 236], [340, 190], [590, 190], [590, 80]] },
+    { name: 'Hospital C', short: 'C', dist: '6.1 km', eta: '12 min', er: 'Full', tone: 'danger', note: 'Level 2 trauma · CT available', x: 700, y: 400, route: [[340, 236], [340, 290], [700, 290], [700, 400]] },
+    { name: 'Hospital D (Neurological Institute)', short: 'D', dist: '8.4 km', eta: '15 min', er: 'Ready', tone: 'success', note: 'Neurosurgery · Stroke unit · CT', x: 110, y: 400, route: [[340, 236], [340, 290], [110, 290], [110, 400]] },
+    { name: "Hospital E (Children's)", short: 'E', dist: '9.0 km', eta: '16 min', er: 'Ready', tone: 'success', note: 'Paediatric ER only', x: 470, y: 470, route: [[340, 236], [340, 290], [470, 290], [470, 470]] }
+  ];
+  var UNITS = [
+    { unit: 'BLS-01', base: CASE.unitBase, equipment: 'Basic Life Support', distance: '2.1 km', eta: '3 min', x: 590, y: 300, route: [[590, 300], [590, 190], [340, 190], [340, 236]] },
+    { unit: 'ALS-04', base: 'Chok Chai Base', equipment: 'Advanced Life Support', distance: '5.4 km', eta: '7 min', x: 700, y: 80, route: [[700, 80], [700, 190], [340, 190], [340, 236]] },
+    { unit: 'BLS-07', base: 'Phahonyothin Base', equipment: 'Basic Life Support', distance: '6.8 km', eta: '9 min', x: 110, y: 400, route: [[110, 400], [110, 290], [340, 290], [340, 236]] }
+  ];
+
+  function Chips(p) {
+    return p.items.length ? h('div', { className: 'ems-chips' }, p.items.map(function (k) { return h(E.KeywordChip, { key: k, tone: p.tone }, k); }))
+      : h('span', { className: 'ems-muted' }, 'None recorded');
+  }
+  function Section(p) {
+    return h('div', null, h('div', { className: 'ems-label', style: { marginBottom: 8 } }, p.label), p.children);
+  }
+
+  /* Facts-only hospital picker: ETA order, capability notes, search, nothing pre-selected. */
+  function HospitalList(p) {
+    var q = useState(''), query = q[0].trim().toLowerCase();
+    var list = query ? HOSPITALS.filter(function (ho) { return (ho.name + ' ' + ho.note).toLowerCase().indexOf(query) >= 0; }) : HOSPITALS;
+    return h('div', { className: 'ems-col', style: { gap: 12 } },
+      h(E.Field, { icon: 'search', value: q[0], onChange: q[1], placeholder: 'Search any hospital by name or specialty' }),
+      h('div', { className: 'ems-label' }, query ? list.length + ' result' + (list.length === 1 ? '' : 's') : 'Nearest ' + HOSPITALS.length + ' · sorted by drive ETA from the scene'),
+      list.length ? list.map(function (ho) {
+        var on = p.value === ho.name;
+        return h('button', { key: ho.name, type: 'button', className: 'ems-topt', 'aria-pressed': on, onClick: function () { p.onChange(ho.name); },
+          style: Object.assign({ gridTemplateColumns: 'auto 1fr auto', gap: 12 }, on ? { border: '2px solid var(--action)', background: 'var(--action-soft)', padding: 15 } : null) },
+          h('span', { className: 'ems-unit-radio', style: on ? { background: 'var(--action)', borderColor: 'var(--action)', color: 'var(--action-ink)' } : null }, h(E.Icon, { name: 'check', size: 16, strokeWidth: 3 })),
+          h('div', { style: { minWidth: 0 } }, h('div', { className: 'ems-topt-title' }, ho.name), h('div', { className: 'ems-topt-detail' }, ho.note),
+            h('div', { className: 'ems-num', style: { fontSize: 13, fontWeight: 600, marginTop: 4 } }, 'ETA ' + ho.eta + ' · ' + ho.dist)),
+          h(E.StatusPill, { tone: ho.tone }, 'ER: ' + ho.er));
+      }) : h('div', { className: 'ems-muted' }, 'No hospital matches "' + q[0] + '".'));
+  }
+
+  /* Read-only case facts. Only the Intake operator changes them. */
+  function CaseFacts(p) {
+    var c = p.c;
+    return h('div', { className: 'ems-col' },
+      h('dl', { className: 'ems-kv', style: { margin: 0, fontSize: 14 } },
+        h('dt', null, 'Patient'), h('dd', null, c.patient),
+        h('dt', null, 'Received'), h('dd', { className: 'ems-num' }, c.received + ' · Operator ' + c.operator),
+        h('dt', null, 'Address'), h('dd', null, c.address)),
+      h(Section, { label: 'Symptom description' }, h('p', { style: { margin: 0, fontSize: 15, lineHeight: '22px' } }, c.symptoms)),
+      h(Section, { label: TYPE_LABEL[c.type] }, h(Chips, { items: c.facts, tone: 'neutral' })),
+      p.map ? h(E.MapView, { height: p.map, radius: 12, view: [210, 150, 260, 162], pinScale: 1.5, ariaLabel: 'Locked incident location',
+        pins: [{ kind: 'incident-locked', x: 340, y: 236, label: 'Locked' }] }) : null);
+  }
+
+  function CaseBoard(p) {
+    var sel = useState(CASE.id), c = CASES.filter(function (x) { return x.id === sel[0]; })[0];
+    var st = STATUS.filter(function (s) { return s[0] === c.status; })[0];
+    return h('main', { style: grid('1fr 520px', { flex: 1, padding: 16 }) },
+      h(E.Card, { title: 'Case Board', subtitle: CASES.length + ' open cases · grouped by status', icon: 'layers', scroll: true },
+        STATUS.map(function (s) {
+          var list = CASES.filter(function (x) { return x.status === s[0]; });
+          if (!list.length) return null;
+          return h('div', { key: s[0] },
+            h('div', { className: 'ems-group-head' }, h(E.StatusPill, { tone: s[2] }, s[1]), h('span', { className: 'ems-muted', style: { fontSize: 13 } }, list.length)),
+            h('ul', { className: 'ems-caselist' }, list.map(function (x) {
+              return h('li', { key: x.id }, h('button', { type: 'button', className: E.cx('ems-caserow', x.isNew && 'ems-caserow-new'), 'aria-pressed': x.id === sel[0], onClick: function () { sel[1](x.id); } },
+                h('div', null, h('div', { style: { fontWeight: 800, fontSize: 16 } }, '#' + x.id), h('div', { className: 'ems-muted ems-num', style: { fontSize: 12 } }, x.received)),
+                h('div', { style: { minWidth: 0 } },
+                  h('div', { style: { fontWeight: 600 } }, x.patient + ' · ' + x.facts[0]),
+                  h('div', { className: 'ems-muted', style: { fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, x.note || x.address)),
+                x.level ? h(E.TriageBadge, { level: x.level }) : h(E.StatusPill, null, 'No code yet')));
+            })));
+        })),
+      h(E.Card, { title: 'Case #' + c.id, subtitle: st[1], icon: 'note', scroll: true, actions: codeTag(c),
+        footer: h(E.Button, { variant: 'primary', size: 'xl', block: true, iconRight: 'arrow-right', onClick: function () { p.onOpen(c); } }, 'Open in Command Center') },
+        h(CaseFacts, { c: c, map: 160 })));
+    function codeTag(cc) { return cc.level ? h(E.TriageBadge, { level: cc.level, size: 'lg', solid: true }) : h(E.StatusPill, { tone: 'warning', size: 'lg' }, 'Awaiting triage'); }
+  }
+
+  function Dispatch(p) {
+    var view = useState((p && (p.initialView || (p.initialTab && 'case'))) || 'board');
+    var current = useState(CASES[0]), c = current[0];
+    var tab = useState((p && p.initialTab) || 'triage'), level = useState((p && p.initialCode) || null), code = useState((p && p.initialCode) || null);
+    var pick = useState(null), dispatched = useState(null);
+    var hospPick = useState((p && p.initialHospital) || null), dest = useState((p && p.initialHospital) || null);
+    var tabs = [{ id: 'triage', label: 'Patient Triage', icon: 'activity' }, { id: 'hospital', label: 'Destination Hospital', icon: 'hospital' },
+      { id: 'fleet', label: 'Fleet Dispatch', icon: 'ambulance' }, { id: 'track', label: 'Tracking & Handover', icon: 'route' }];
+    var options = [
+      ['red', 'Code Red', '4 / 8 min response target', 'Sirens'],
+      ['yellow', 'Code Yellow', '8 / 15 min response target', 'Sirens'],
+      ['green', 'Code Green', 'Standard traffic', 'No sirens'],
+      ['white', 'Code White', 'Tele-advice / Police request', 'No unit'],
+      ['black', 'Code Black', 'Deceased / No response', 'Coroner']
+    ];
+    function open(cc) { current[1](cc); tab[1]('triage'); level[1](null); code[1](cc.level || null); pick[1](null); dispatched[1](null); hospPick[1](cc.hospital || null); dest[1](cc.hospital || null); view[1]('case'); }
+    var unitId = dispatched[0] || pick[0];
+    var unit = UNITS.filter(function (u) { return u.unit === unitId; })[0];
+    var lines = c.id === CASE.id
+      ? [['14:20:02', 'Motorcycle hit a pole.'], ['14:20:06', 'The victim is unconscious and not breathing.'], ['14:20:15', 'A man is starting CPR now. There is a lot of bleeding from his head.'], ['14:20:30', 'He is about thirty. No helmet.']]
+      : [[c.received, c.symptoms]];
+    var body;
+    if (view[0] === 'board') {
+      body = h(CaseBoard, { onOpen: open });
+    } else if (tab[0] === 'triage') {
+      body = h('div', { style: grid('1fr 1.6fr 1fr', { flex: 1 }) },
+        h(E.Card, { title: 'Caller Symptom Log', subtitle: 'From Call Intake · Operator ' + c.operator, icon: 'mic', flush: true, scroll: true },
+          lines.map(function (l, i) { return h(E.TranscriptLine, { key: i, time: l[0], speaker: 'Caller', text: l[1], keywords: KW, onCopy: false }); })),
+        h(E.Card, { title: 'Case Details', subtitle: 'Read-only · edited by Call Intake', icon: 'note', scroll: true, actions: h(E.StatusPill, { tone: 'info', icon: 'lock' }, 'Location locked') },
+          h(CaseFacts, { c: c, map: 150 })),
+        h(E.Card, { title: 'Triage Decision', subtitle: 'Your call · nothing is pre-selected', icon: 'shield', scroll: true,
+          footer: h(E.Button, { variant: 'primary', size: 'lg', block: true, iconRight: 'arrow-right', disabled: !level[0], onClick: function () { code[1](level[0]); tab[1]('hospital'); } }, 'Confirm & Choose Destination Hospital') },
+          h('div', { className: 'ems-col', style: { gap: 8 } },
+            options.map(function (o) {
+              return h(E.TriageOptionCard, { key: o[0], level: o[0], title: o[1], detail: o[2], meta: o[3], compact: true, selected: level[0] === o[0], onSelect: function () { level[1](o[0]); } });
+            }),
+            h('div', { className: 'ems-muted', style: { fontSize: 13 } }, level[0] ? 'Selected: ' + E.LEVEL_LABEL[level[0]] : 'Select a code to continue.'))));
+    } else if (tab[0] === 'hospital') {
+      /* The dispatcher owns the destination: chosen before a unit is sent, and changed only here. */
+      var changing = !!dispatched[0] && !!dest[0];
+      var hp = HOSPITALS.filter(function (ho) { return ho.name === hospPick[0]; })[0];
+      var hpins = [{ kind: 'incident-locked', x: 340, y: 236, label: 'Scene · #' + c.id }].concat(HOSPITALS.map(function (ho) {
+        return { kind: 'hospital', x: ho.x, y: ho.y, label: ho === hp ? ho.name + ' · ' + ho.eta : ho.short + ' · ' + ho.eta };
+      }));
+      body = h('div', { style: grid('1fr 432px', { flex: 1 }) },
+        h(E.Card, { title: 'Hospital Map — routes from the scene', icon: 'layers', flush: true, actions: h(E.StatusPill, { tone: 'live' }, 'Live traffic') },
+          h(E.MapView, { ariaLabel: 'Hospital map with route from the scene', route: hp ? hp.route : undefined, pins: hpins,
+            congestion: [{ points: [[470, 200], [470, 400]] }, { points: [[480, 290], [700, 290]], level: 'slow' }] },
+            hp ? h(E.MapOverlay, { style: { left: 16, top: 16, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px' } },
+              h(E.Icon, { name: 'route', size: 22, style: { color: 'var(--action)' } }),
+              h('div', null, h('div', { style: { fontWeight: 700 } }, 'Scene → ' + hp.name),
+                h('div', { className: 'ems-muted ems-num', style: { fontSize: 13 } }, 'Fastest route · ' + hp.dist + ' · ETA ' + hp.eta)))
+              : h(E.MapOverlay, { style: { left: 16, top: 16, padding: '12px 16px' } }, h('span', { className: 'ems-muted' }, 'Pick a hospital to preview its route from the scene')),
+            h(E.MapOverlay, { className: 'ems-map-legend', style: { left: 16, bottom: 16 } },
+              h('span', null, h(E.Dot, { tone: 'green' }), 'Scene (locked)'), h('span', null, h(E.Icon, { name: 'hospital', size: 14 }), 'Hospital'),
+              h('span', null, h(E.Dot, { tone: 'info' }), 'Route'), h('span', null, h(E.Dot, { tone: 'red' }), 'Jam')))),
+        h('div', { className: 'ems-col', style: { minHeight: 0, overflow: 'hidden' } },
+          !code[0] ? h(E.AlertBanner, { tone: 'warning', icon: 'alert', title: 'Set the Triage Code first' }, 'Go back to Patient Triage.') : null,
+          changing ? h(E.AlertBanner, { tone: 'info', icon: 'reroute', title: 'Current destination: ' + dest[0] }, 'Changing it updates the Copilot route and moves the ER alert.') : null,
+          h('div', { className: 'ems-row', style: { justifyContent: 'space-between' } },
+            h('span', { className: 'ems-label' }, 'Destination Hospital · your call'),
+            code[0] ? h(E.TriageBadge, { level: code[0] }) : null),
+          h('div', { style: { flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden', paddingRight: 4 } }, h(HospitalList, { value: hospPick[0], onChange: hospPick[1] })),
+          h('div', { style: { flex: 'none' } },
+            h(E.Button, { variant: 'primary', size: 'xl', block: true, iconRight: 'arrow-right', disabled: !hospPick[0] || !code[0] || hospPick[0] === dest[0] && changing,
+              onClick: function () { dest[1](hospPick[0]); tab[1](changing ? 'track' : 'fleet'); } },
+              changing ? 'Update Destination & Notify ER' : 'Confirm & Go to Fleet Dispatch'))));
+    } else if (tab[0] === 'fleet') {
+      var pins = [{ kind: 'incident', x: 340, y: 236, label: '#' + c.id }].concat(UNITS.map(function (u) {
+        return { kind: u.unit === unitId ? 'unit' : 'unit-alt', x: u.x, y: u.y, label: u.unit };
+      }), [{ kind: 'unit-busy', x: 470, y: 80, label: 'ALS-02 busy' }, { kind: 'unit-busy', x: 230, y: 330 }], dest[0] ? [{ kind: 'hospital', x: 120, y: 120, label: dest[0] }] : []);
+      body = h('div', { style: grid('1fr 432px', { flex: 1 }) },
+        h(E.Card, { title: 'Regional Fleet Map — Lat Phrao / Chatuchak', icon: 'layers', flush: true, actions: h(E.StatusPill, { tone: 'live' }, 'GPS live · 5 s') },
+          h(E.MapView, { ariaLabel: 'Regional fleet map', route: unit ? unit.route : undefined, pins: pins },
+            h(E.MapOverlay, { className: 'ems-map-legend', style: { left: 16, bottom: 16 } },
+              h('span', null, h(E.Dot, { tone: 'red' }), 'Incident'), h('span', null, h(E.Dot, { tone: 'info' }), 'Selected'),
+              h('span', null, h(E.Dot, { tone: 'white' }), 'Available'), h('span', null, h(E.Dot, { tone: 'neutral' }), 'Busy')))),
+        h('div', { className: 'ems-col', style: { minHeight: 0, overflowY: 'auto', overflowX: 'hidden' } },
+          dest[0] ? h('div', { className: 'ems-row', style: { justifyContent: 'space-between' } },
+              h(E.StatusPill, { tone: 'info', size: 'lg', icon: 'hospital' }, 'Destination: ' + dest[0]),
+              h(E.Button, { variant: 'ghost', size: 'sm', onClick: function () { tab[1]('hospital'); } }, 'Change'))
+            : h(E.AlertBanner, { tone: 'warning', icon: 'alert', title: 'Choose a Destination Hospital first', actions: h(E.Button, { variant: 'ghost', onClick: function () { tab[1]('hospital'); } }, 'Choose') }, 'A unit can only be sent once the destination is set.'),
+          h('div', { className: 'ems-label' }, 'Available units · sorted by ETA'),
+          UNITS.map(function (u) {
+            var isOut = dispatched[0] === u.unit;
+            return h(E.UnitCard, { key: u.unit, compact: true, unit: u.unit, base: u.base, distance: u.distance, eta: u.eta, equipment: u.equipment,
+              selected: u.unit === unitId, disabled: !!dispatched[0] && !isOut, onSelect: function () { if (!dispatched[0]) pick[1](u.unit); },
+              badge: isOut ? h(E.StatusPill, { tone: 'warning', loading: true }, 'Awaiting crew') : null });
+          }),
+          h('div', { className: 'ems-muted', style: { fontSize: 13 } }, 'ALS-02 is busy (out of service) and cannot be picked.'),
+          h('div', { style: { marginTop: 'auto' } },
+            dispatched[0]
+              ? h(E.Button, { variant: 'outline', size: 'xl', block: true, icon: 'check' }, unitId + ' Dispatched 14:22:31')
+              : h(E.Button, { variant: 'primary', size: 'xl', block: true, icon: 'send', disabled: !pick[0] || !dest[0], onClick: function () { dispatched[1](pick[0]); } }, pick[0] ? 'Dispatch ' + pick[0] + ' & Notify ER' : 'Select a unit to dispatch'))));
+    } else {
+      var u = unit || UNITS[0];
+      body = h('div', { style: grid('1.3fr 1fr', { flex: 1 }) },
+        h('div', { className: 'ems-col', style: { minHeight: 0 } },
+          h(E.Card, { title: 'Live Telemetry — Unit ' + u.unit, icon: 'gauge', actions: h(E.StatusPill, { tone: 'live' }, 'Transmitting') },
+            h('div', { style: grid('repeat(3, 1fr)', { marginBottom: 24 }) },
+              h(E.Metric, { label: 'Transit speed', value: '72', unit: 'km/h', size: 'lg' }),
+              h(E.Metric, { label: 'Distance to scene', value: '1.8', unit: 'km', size: 'lg' }),
+              h(E.Metric, { label: 'ETA to scene', countdown: 180, size: 'lg', tone: 'info' })),
+            h(E.Stepper, { current: 1, steps: [{ label: 'Accepted', sub: '14:22:40' }, { label: 'En route', sub: 'Now' }, { label: 'On scene' }, { label: 'Patient onboard' }, { label: 'At hospital' }] })),
+          h(E.MapView, { radius: 12, style: { flex: 1 }, ariaLabel: 'Unit tracking map', route: u.route, altRoute: [[340, 236], [340, 190], [230, 190], [230, 120], [120, 120]],
+            congestion: [{ points: [[470, 200], [470, 400]] }, { points: [[480, 290], [700, 290]], level: 'slow' }],
+            pins: [{ kind: 'vehicle', x: u.x, y: u.y, heading: 0, label: u.unit + ' · 72 km/h' }, { kind: 'incident', x: 340, y: 236 }, { kind: 'hospital', x: 120, y: 120, label: dest[0] || 'No destination' }] })),
+        h('div', { className: 'ems-col', style: { minHeight: 0 } },
+          h(E.Card, { title: 'Destination Hospital', icon: 'hospital',
+            actions: h(E.Button, { variant: 'ghost', size: 'sm', icon: 'reroute', onClick: function () { tab[1]('hospital'); } }, 'Change') },
+            h('dl', { className: 'ems-kv', style: { margin: 0 } },
+              h('dt', null, 'Hospital'), h('dd', { style: { fontWeight: 700 } }, dest[0] || 'Not chosen'),
+              h('dt', null, 'Chosen by'), h('dd', null, 'Navin (dispatcher) · crew requests changes by radio'),
+              h('dt', null, 'ER alert'), h('dd', null, dispatched[0] ? h(E.StatusPill, { tone: 'warning', icon: 'clock' }, 'Incoming Notice sent 14:22:31') : h(E.StatusPill, null, 'Sent when a unit is dispatched')))),
+          h(E.Card, { title: 'Traffic Clearance', icon: 'traffic' },
+            h('div', { className: 'ems-row', style: { justifyContent: 'space-between' } },
+              h(E.StatusPill, { tone: 'success', size: 'lg', icon: 'check-circle' }, 'Green corridor active'),
+              h('span', { className: 'ems-muted' }, '3 junctions · Lat Phrao sector')),
+            h('div', { className: 'ems-muted', style: { fontSize: 13, marginTop: 12 } }, 'Acknowledged by Traffic Police at 14:23:12.')),
+          h(E.Card, { title: 'Case Ownership', icon: 'users', style: { flex: 1 },
+            footer: h(E.Button, { variant: 'primary', size: 'xl', block: true, icon: 'arrow-right', onClick: function () { view[1]('board'); } }, 'Handover & Return to Case Board') },
+            h('div', { className: 'ems-row', style: { gap: 12, flexWrap: 'nowrap' } },
+              h(E.Avatar, { name: 'Navin', size: 'lg', status: 'online' }),
+              h('div', null, h('div', { style: { fontWeight: 700 } }, 'Navin'), h('div', { className: 'ems-muted', style: { fontSize: 13 } }, 'Current owner')),
+              h(E.Icon, { name: 'arrow-right', style: { color: 'var(--text-muted)', margin: '0 auto' } }),
+              h(E.Avatar, { name: 'Monitoring Team B', initials: 'MB', size: 'lg' }),
+              h('div', null, h('div', { style: { fontWeight: 700 } }, 'Monitoring Team B'), h('div', { className: 'ems-muted', style: { fontSize: 13 } }, '3 monitors online'))))));
+    }
+    return h('div', { className: 'ems-app ems-app-1440' },
+      h(E.AppBar, { title: view[0] === 'board' ? 'Dispatch · Case Board' : 'Dispatch Command Center', subtitle: 'Bangkok EMS · North Zone', icon: 'radio' },
+        h(E.MetaItem, { label: 'Available Units', value: '12/15', icon: 'ambulance', tone: 'green' }),
+        h(E.MetaItem, { label: 'Dispatcher', value: 'Navin (Online)', lead: h(E.Avatar, { name: 'Navin', status: 'online' }) }),
+        h(E.MetaItem, { label: 'Local time', value: h(E.Clock, { start: 14 * 3600 + 22 * 60 + 10 }), icon: 'clock' })),
+      view[0] === 'board' ? body : h('main', { style: { flex: 1, minHeight: 0, padding: 16, display: 'flex', flexDirection: 'column', gap: 16 } },
+        h('div', { className: 'ems-row', style: { gap: 16, flexWrap: 'nowrap' } },
+          h(E.Button, { variant: 'outline', size: 'lg', icon: 'arrow-left', onClick: function () { view[1]('board'); }, style: { flex: 'none', height: 64 } }, 'Case Board'),
+          h('div', { style: { flex: 1, minWidth: 0 } }, h(E.IncidentStrip, { incident: Object.assign({}, CASE, { id: c.id, addressShort: c.address.split(',')[0] }), level: code[0],
+            unitText: dispatched[0] ? dispatched[0] + ' (awaiting crew)' : 'Not dispatched' }))),
+        h(E.SegmentedTabs, { items: tabs, value: tab[0], onChange: tab[1] }),
+        body));
+  }
+
+  /* 3. Ambulance In-Vehicle Copilot (1024 x 768) */
+  var DECLINE_REASONS = ['Vehicle fault', 'Crew unavailable', 'Already on a case'];
+  var NO_TRANSPORT = ['Deceased on scene', 'Refused transport', 'Treated on scene'];
+
+  function ReasonList(p) {
+    return h('div', { className: 'ems-col', style: { gap: 8 } }, p.items.map(function (r) {
+      return h('button', { key: r, type: 'button', className: 'ems-option', 'aria-pressed': p.value === r, onClick: function () { p.onChange(r); } },
+        h('span', { className: 'ems-unit-radio', 'aria-hidden': true }, h(E.Icon, { name: 'check', size: 16, strokeWidth: 3 })), r);
+    }));
+  }
+
+  function Copilot(p) {
+    var stage = useState((p && p.initialStage) || 'offer'), s = stage[0];
+    var declining = useState(false), reason = useState(null), noTx = useState(false), noTxReason = useState(null);
+    var dest = CASE.hospital;
+    /* Auto-Arrival: location alone moves the stage on, like a navigation app's "You have arrived".
+       The preview simulates the drive with a short timer. The crew has no arrival button. */
+    var dist = useState(300);
+    useEffect(function () {
+      if (s !== 'enroute' && s !== 'transport') return;
+      dist[1](300);
+      var id = setInterval(function () { dist[1](function (d) { return Math.max(0, d - 50); }); }, 1000);
+      return function () { clearInterval(id); };
+    }, [s]);
+    useEffect(function () {
+      if (dist[0] > 0) return;
+      if (s === 'enroute') stage[1]('scene'); else if (s === 'transport') stage[1]('hospital');
+    }, [dist[0]]);
+    var stepIndex = { enroute: 1, scene: 2, transport: 3, hospital: 4, complete: 5, closed: 5 }[s] || 0;
+    var toHospital = s === 'transport' || s === 'hospital' || s === 'complete';
+    var atScene = s === 'scene' || s === 'closed';
+
+    var banner = h('div', { style: { flex: 'none', display: 'flex', alignItems: 'center', gap: 16, padding: '12px 24px', background: 'var(--danger-fill)', color: 'var(--on-danger)' }, role: 'region', 'aria-label': 'Patient vitals' },
+      h('span', { style: { display: 'flex', alignItems: 'center', gap: 10, fontSize: 24, fontWeight: 800, whiteSpace: 'nowrap' } }, h(E.Icon, { name: 'siren', size: 28 }), 'Code Red'),
+      h('span', { style: { width: 1, height: 32, background: 'var(--on-danger)', opacity: .4 } }),
+      h('span', { style: { fontSize: 20, fontWeight: 700, whiteSpace: 'nowrap' } }, CASE.patientShort),
+      h('span', { style: { fontSize: 15, fontWeight: 600, marginLeft: 8 } }, 'Critical:'),
+      ['Unconscious', 'No Pulse', 'Head Trauma'].map(function (k) { return h(E.KeywordChip, { key: k, tone: 'ondanger' }, k); }),
+      h('span', { style: { marginLeft: 'auto', textAlign: 'right', whiteSpace: 'nowrap' } },
+        h('div', { style: { fontSize: 12, fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase' } }, s === 'hospital' || s === 'complete' ? 'At hospital' : toHospital ? 'ETA to Hospital' : atScene ? 'At scene' : 'ETA to Scene'),
+        h('div', { className: 'ems-num', style: { fontSize: 28, lineHeight: '32px', fontWeight: 800 } }, s === 'hospital' || s === 'complete' || atScene ? 'Now' : toHospital ? '6 min' : '3 min')));
+
+    /* Accept Case: the crew accepts or declines before anything starts. */
+    if (s === 'offer' || s === 'declined') {
+      var offer = s === 'declined'
+        ? h('div', { className: 'ems-empty' },
+          h(E.Icon, { name: 'reroute', size: 40 }),
+          h('div', { style: { fontSize: 22, fontWeight: 700, color: 'var(--text-primary)' } }, 'Case #' + CASE.id + ' returned to Dispatch'),
+          h('div', null, 'Reason sent: ' + reason[0] + '. The dispatcher will pick another unit.'),
+          h(E.Button, { variant: 'outline', size: 'lg', onClick: function () { stage[1]('offer'); declining[1](false); } }, 'Undo decline'))
+        : h('section', { className: 'ems-card', style: { flex: 1, padding: 24, display: 'flex', flexDirection: 'column', gap: 20, minHeight: 0 }, 'aria-label': 'New case' },
+          h('div', { className: 'ems-row', style: { justifyContent: 'space-between' } },
+            h('div', null,
+              h(E.StatusPill, { tone: 'danger', size: 'lg', pulse: true }, 'New case assigned by Dispatch · 14:22:31'),
+              h('div', { style: { fontSize: 32, lineHeight: '40px', fontWeight: 800, marginTop: 12 } }, 'Case #' + CASE.id)),
+            h('div', { style: { display: 'flex', gap: 32 } },
+              h(E.Metric, { label: 'Distance', value: '2.1', unit: 'km', size: 'lg' }),
+              h(E.Metric, { label: 'ETA to scene', value: '3 min', size: 'lg', tone: 'info' }))),
+          declining[0]
+            ? h('div', { className: 'ems-col', style: { flex: 1 } },
+              h('div', { style: { fontSize: 18, fontWeight: 700 } }, 'Why are you declining?'),
+              h(ReasonList, { items: DECLINE_REASONS, value: reason[0], onChange: reason[1] }))
+            : h('div', { style: grid('1fr 1fr', { flex: 1, gap: 24 }) },
+              h('dl', { className: 'ems-kv', style: { margin: 0, fontSize: 18, lineHeight: '26px', gap: '12px 24px', alignContent: 'start' } },
+                h('dt', null, 'Patient'), h('dd', null, CASE.patient),
+                h('dt', null, 'Address'), h('dd', null, CASE.address),
+                h('dt', null, 'Symptoms'), h('dd', { style: { fontWeight: 500 } }, 'Unconscious, apnea, heavy head bleeding. Bystander CPR.')),
+              h('div', { className: 'ems-col' },
+                h(Section, { label: TYPE_LABEL[CASE.type] }, h(Chips, { items: CASE.facts, tone: 'neutral' })),
+                h(Section, { label: 'Destination Hospital · set by Dispatch' },
+                  h('div', { className: 'ems-row' }, h(E.Icon, { name: 'hospital', size: 20, style: { color: 'var(--action)' } }), h('span', { style: { fontSize: 18, fontWeight: 700 } }, dest))))),
+          h('div', { className: 'ems-row', style: { gap: 16, flexWrap: 'nowrap' } },
+            declining[0]
+              ? [h(E.Button, { key: 'b', variant: 'secondary', size: 'xl', style: { flex: 1, height: 80 }, onClick: function () { declining[1](false); reason[1](null); } }, 'Back'),
+                h(E.Button, { key: 's', variant: 'danger', size: 'xl', icon: 'x', disabled: !reason[0], style: { flex: 2, height: 80, fontSize: 18 }, onClick: function () { stage[1]('declined'); } }, 'Send Decline to Dispatch')]
+              : [h(E.Button, { key: 'd', variant: 'danger-outline', size: 'xl', icon: 'x', style: { flex: 1, height: 80, fontSize: 18 }, onClick: function () { declining[1](true); } }, 'Decline'),
+                h(E.Button, { key: 'a', variant: 'success', size: 'xl', icon: 'check-circle', style: { flex: 2, height: 80, fontSize: 20 }, onClick: function () { stage[1]('enroute'); } }, 'Accept Case & Start Navigation')]));
+      return h('div', { className: 'ems-app ems-app-1024' }, banner,
+        h('main', { style: { flex: 1, minHeight: 0, padding: 16, display: 'flex', flexDirection: 'column' } }, offer));
+    }
+
+    var action;
+    var waiting = function (text) {
+      return h('div', { className: 'ems-row', style: { flex: 1, height: 64, padding: '0 20px', borderRadius: 12, background: 'var(--bg-base)', border: '1px dashed var(--border-strong)', gap: 12, flexWrap: 'nowrap', fontSize: 17, fontWeight: 600 } },
+        h(E.Icon, { name: 'crosshair', size: 22, style: { color: 'var(--action)' } }), text,
+        h('span', { className: 'ems-num ems-muted', style: { marginLeft: 'auto', fontSize: 15 } }, dist[0] + ' m to go'));
+    };
+    if (s === 'enroute') action = waiting('Arrival at the scene is detected automatically');
+    else if (s === 'scene') action = [
+      h(E.Button, { key: 'n', variant: 'outline', size: 'xl', icon: 'x', style: { flex: 1, height: 64, fontSize: 17 }, onClick: function () { noTx[1](true); } }, 'No Transport'),
+      h(E.Button, { key: 'o', variant: 'success', size: 'xl', icon: 'check-circle', style: { flex: 2, height: 64, fontSize: 18 }, onClick: function () { stage[1]('transport'); } }, 'Confirm Patient Onboard')];
+    else if (s === 'transport') action = waiting('Navigating to ' + dest + ' · Pre-Arrival sent');
+    else if (s === 'hospital') action = [
+      h(E.StatusPill, { key: 'p', tone: 'success', size: 'lg', icon: 'check-circle' }, 'Arrived at ' + dest + ' · Resus Bay 2'),
+      h(E.Button, { key: 'c', variant: 'primary', size: 'xl', icon: 'check', style: { flex: 1, height: 64, fontSize: 18 }, onClick: function () { stage[1]('complete'); } }, 'Confirm Handover to ER')];
+    else if (s === 'complete') action = h(E.AlertBanner, { tone: 'success', title: 'Handover complete · Case #' + CASE.id + ' handed to ' + dest }, 'Unit available for the next case');
+    else action = h(E.AlertBanner, { tone: 'info', icon: 'archive', title: 'Mission closed · No Transport', actions: h(E.Button, { variant: 'ghost', onClick: function () { stage[1]('scene'); noTxReason[1](null); } }, 'Undo') }, noTxReason[0] + ' · Dispatch notified · ' + dest + ' Incoming Notice cancelled');
+    var arrived = s === 'scene' ? 'Scene · ' + CASE.addressShort : s === 'hospital' ? dest : null;
+
+    return h('div', { className: 'ems-app ems-app-1024' }, banner,
+      h('div', { style: { position: 'relative', flex: 1, minHeight: 0 } },
+        h(E.MapView, { ariaLabel: 'Navigation map', view: [100, 80, 540, 300],
+          route: s === 'transport' ? [[340, 236], [340, 190], [230, 190], [230, 120], [120, 120]] : s === 'enroute' ? [[590, 330], [590, 190], [340, 190], [340, 236]] : undefined,
+          congestion: [{ points: [[470, 200], [470, 400]] }, { points: [[480, 290], [580, 290]], level: 'slow' }],
+          pins: [{ kind: 'vehicle', x: s === 'enroute' ? 590 : s === 'hospital' || s === 'complete' ? 120 : 340, y: s === 'enroute' ? 300 : s === 'hospital' || s === 'complete' ? 140 : 236, heading: toHospital ? -90 : 0 },
+            { kind: 'incident-locked', x: 340, y: 236, label: 'Scene · #' + CASE.id }, { kind: 'hospital', x: 120, y: 120, label: dest }] },
+          arrived ? h(E.MapOverlay, { style: { left: 16, top: 16, display: 'flex', alignItems: 'center', gap: 16, padding: 16, paddingRight: 24 } },
+            h('span', { style: { width: 72, height: 72, borderRadius: 12, background: 'var(--triage-green)', color: 'var(--on-success)', display: 'flex', alignItems: 'center', justifyContent: 'center' } }, h(E.Icon, { name: 'pin', size: 40, strokeWidth: 2.5 })),
+            h('div', null, h('div', { style: { fontSize: 28, lineHeight: '36px', fontWeight: 800 } }, 'You have arrived'),
+              h('div', { style: { fontSize: 18, fontWeight: 600 } }, arrived),
+              h('div', { className: 'ems-muted', style: { fontSize: 13, marginTop: 2 } }, 'Detected automatically · 14:25:40'))) : null,
+          s === 'enroute' || s === 'transport' ? h(E.MapOverlay, { style: { left: 16, top: 16, display: 'flex', alignItems: 'center', gap: 16, padding: 16, paddingRight: 24 } },
+            h('span', { style: { width: 72, height: 72, borderRadius: 12, background: 'var(--action)', color: 'var(--action-ink)', display: 'flex', alignItems: 'center', justifyContent: 'center' } }, h(E.Icon, { name: 'turn-left', size: 44, strokeWidth: 2.5 })),
+            h('div', null, h('div', { className: 'ems-num', style: { fontSize: 32, lineHeight: '40px', fontWeight: 800 } }, 'In 300 m'),
+              h('div', { style: { fontSize: 20, fontWeight: 600 } }, toHospital ? 'Turn left onto Phahonyothin Rd · to ' + dest : 'Turn left onto Lat Phrao Rd'),
+              h('div', { className: 'ems-muted', style: { fontSize: 13, marginTop: 2 } }, 'Fastest route · avoids Ratchada congestion (−2 min)'))) : null,
+          h(E.MapOverlay, { float: false, style: { right: 16, top: 16, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'flex-end' } },
+            h(E.Button, { variant: 'warning', flashing: s === 'enroute' || s === 'transport', stack: true, icon: 'siren', style: { width: 152, minHeight: 112, fontSize: 16, borderRadius: 16 } }, 'Request Traffic Assist'),
+            h(E.Button, { variant: 'secondary', size: 'xl', round: true, icon: 'phone', title: 'Direct Voice Call', style: { width: 80, height: 80 } })))),
+      h('div', { style: { flex: 'none', padding: 16, background: 'var(--bg-surface)', borderTop: '1px solid var(--border-default)', display: 'flex', flexDirection: 'column', gap: 12 } },
+        h('div', { className: 'ems-row', style: { gap: 16, flexWrap: 'nowrap' } }, action),
+        h(E.Stepper, { variant: 'segments', current: stepIndex,
+          steps: [{ label: 'Accepted' }, { label: 'On Scene' }, { label: 'Patient Onboard' }, { label: 'At Hospital' }, { label: 'Handover' }] })),
+        h(E.Modal, { open: noTx[0], title: 'No Transport', icon: 'archive', width: 560, onClose: function () { noTx[1](false); },
+          footer: [h(E.Button, { key: 'c', variant: 'secondary', size: 'xl', onClick: function () { noTx[1](false); } }, 'Cancel'),
+            h(E.Button, { key: 'o', variant: 'primary', size: 'xl', disabled: !noTxReason[0], style: { flex: 1 }, onClick: function () { noTx[1](false); stage[1]('closed'); } }, 'Close Mission')] },
+          h('div', { className: 'ems-muted' }, 'The mission ends here and ' + dest + "'s Incoming Notice is cancelled. Pick the outcome:"),
+          h(ReasonList, { items: NO_TRANSPORT, value: noTxReason[0], onChange: noTxReason[1] })));
+  }
+
+  /* 4. Traffic Police Control Hub (phone 390 x 844) */
+  function Traffic() {
+    var ack = useState(false), tab = useState('corridor'), big = useState(false);
+    var junctions = [
+      { name: 'Chok Chai 4 Junction', eta: 75 },
+      { name: 'Ratchada–Lat Phrao Junction', eta: 220 },
+      { name: 'Phahonyothin Junction', eta: 370 }
+    ];
+    var corridor = [
+      ack[0]
+        ? h(E.AlertBanner, { key: 'a', tone: 'success', title: 'Green corridor active · BLS-01' }, 'Activated 14:23:12 · Case #' + CASE.id)
+        : h(E.AlertBanner, { key: 'a', flashing: true, title: 'Priority clearance: BLS-01 · Code Red' },
+          h('div', null, 'Case #' + CASE.id + ' · Lat Phrao Rd westbound → ' + CASE.hospital)),
+      h(E.Card, { key: 'j', title: 'Next 3 junctions', subtitle: 'Live ETA', icon: 'route', style: { flex: 'none' } },
+        h(E.JunctionTimeline, { items: junctions, cleared: ack[0] })),
+      h(E.Card, { key: 'm', title: 'Corridor map', icon: 'layers', flush: true, style: { flex: 'none' },
+        actions: h(E.Button, { variant: 'ghost', size: 'sm', icon: big[0] ? 'minus' : 'plus', onClick: function () { big[1](!big[0]); } }, big[0] ? 'Collapse' : 'Expand') },
+        h(E.MapView, { height: big[0] ? 420 : 160, view: big[0] ? [100, 60, 700, 380] : [80, 110, 720, 200], pinScale: 1.4, labels: big[0], ariaLabel: 'Corridor map', route: [[790, 190], [120, 190], [120, 120]],
+          congestion: [{ points: [[700, 200], [700, 330]], level: 'slow' }],
+          pins: [{ kind: 'vehicle', x: 770, y: 190, heading: -90 }, { kind: ack[0] ? 'junction-green' : 'junction-next', x: 700, y: 190, n: '1' },
+            { kind: ack[0] ? 'junction-green' : 'junction', x: 470, y: 190, n: '2' }, { kind: ack[0] ? 'junction-green' : 'junction', x: 230, y: 190, n: '3' }, { kind: 'hospital', x: 120, y: 120 }] }))
+    ];
+    var remarks = h(E.Card, { title: 'Live Operational Remarks', icon: 'note', style: { flex: 1 },
+      footer: [h(E.Field, { key: 'f', placeholder: 'Add a remark for field units…', style: { flex: 1 } }), h(E.Button, { key: 'b', variant: 'secondary', icon: 'send', title: 'Post remark' })] },
+      h('div', { className: 'ems-row', style: { marginBottom: 8 } }, h(E.Avatar, { name: 'Prasert K', size: 'sm' }), h('span', { className: 'ems-muted', style: { fontSize: 12 } }, 'Sgt. Prasert K. · 14:23:40')),
+      h('p', { style: { margin: 0, fontSize: 15, lineHeight: '22px', fontWeight: 500 } }, 'Chok Chai 4 queue tail approx 200m - Far right lane cleared for emergency vehicle passage.'));
+    return h('div', { className: 'ems-app ems-app-390' },
+      h('header', { className: 'ems-appbar', style: { height: 'auto', gap: 12, padding: '12px 16px' } },
+        h('span', { className: 'ems-appbar-mark', style: { width: 36, height: 36 } }, h(E.Icon, { name: 'traffic', size: 18 })),
+        h('div', { style: { flex: 1, minWidth: 0 } },
+          h('div', { style: { fontSize: 16, lineHeight: '22px', fontWeight: 700 } }, 'Traffic Police'),
+          h('div', { className: 'ems-muted', style: { fontSize: 12, lineHeight: '16px' } }, 'Lat Phrao sector · Sgt. Prasert K.')),
+        h(E.StatusPill, { tone: ack[0] ? 'success' : 'warning', pulse: !ack[0] }, ack[0] ? 'Active' : 'Request')),
+      h('main', { style: { flex: 1, minHeight: 0, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 } },
+        tab[0] === 'corridor' ? corridor : remarks),
+      h('div', { style: { flex: 'none', display: 'flex', gap: 12, padding: '12px 16px', background: 'var(--bg-surface)', borderTop: '1px solid var(--border-default)' } },
+        h(E.Button, { variant: ack[0] ? 'outline' : 'success', size: 'xl', icon: ack[0] ? 'check' : 'check-circle', style: { flex: 1, height: 64, fontSize: 16, padding: '0 12px', whiteSpace: 'normal', lineHeight: '20px' }, onClick: function () { ack[1](true); } },
+          ack[0] ? 'Green Corridor Activated' : 'Acknowledge & Activate Green Corridor'),
+        h(E.Button, { variant: 'secondary', size: 'xl', round: true, icon: 'phone', title: 'Call ambulance driver', style: { width: 64, height: 64, flex: 'none' } })),
+      h('nav', { className: 'ems-tabbar', role: 'tablist' },
+        [['corridor', 'Corridor', 'route'], ['remarks', 'Remarks', 'note']].map(function (t) {
+          return h('button', { key: t[0], type: 'button', role: 'tab', 'aria-selected': tab[0] === t[0], onClick: function () { tab[1](t[0]); } }, h(E.Icon, { name: t[2], size: 20 }), t[1]);
+        })));
+  }
+
+  /* 5. Hospital ER Pre-Arrival Display (1440 x 900) */
+  function Hospital(p) {
+    var decision = useState(null), stage = useState((p && p.initialStage) || 'notice');
+    /* Two-stage ER alert: the Incoming Notice at dispatch becomes the Pre-Arrival at Patient Onboard.
+       The preview simulates the crew's Patient Onboard after a few seconds. */
+    useEffect(function () {
+      if (stage[0] !== 'notice') return;
+      var t = setTimeout(function () { stage[1]('prearrival'); }, 8000);
+      return function () { clearTimeout(t); };
+    }, [stage[0]]);
+    var notice = stage[0] === 'notice';
+    var bays = [['Resus 1', 'Occupied', 'danger'], ['Resus 2', 'Available', 'success'], ['Resus 3', 'Cleaning · 12 min', 'warning']];
+    return h('div', { className: 'ems-app ems-app-1440' },
+      h(E.AppBar, { size: 'lg', title: 'Hospital A - Level 1 Trauma Center', subtitle: 'Emergency Department Real-Time Intake', icon: 'hospital' },
+        h(E.MetaItem, { size: 'lg', label: 'ER beds occupied', value: '18 / 24', icon: 'bed' }),
+        h(E.MetaItem, { size: 'lg', label: 'Resus bays free', value: '1', tone: 'green' }),
+        h(E.MetaItem, { size: 'lg', label: 'ICU free', value: '2', tone: 'yellow' }),
+        h(E.MetaItem, { size: 'lg', label: 'Time', value: h(E.Clock, { start: 14 * 3600 + 24 * 60 + 15 }), icon: 'clock' })),
+      h('main', { style: grid('1fr 432px', { flex: 1, padding: 24, gap: 24 }) },
+        notice ? h('section', { className: 'ems-card', style: { padding: 32, display: 'flex', flexDirection: 'column', gap: 24, border: '2px dashed var(--triage-red-line)' }, 'aria-label': 'Incoming Notice' },
+          h('div', { className: 'ems-row', style: { justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap' } },
+            h('div', null,
+              h('div', { className: 'ems-row' }, h(E.StatusPill, { tone: 'warning', pulse: true, size: 'lg' }, 'Incoming Notice · 14:22:31'), h('span', { className: 'ems-muted' }, 'Case #' + CASE.id)),
+              h('h2', { style: { margin: '16px 0 0', fontSize: 40, lineHeight: '48px', fontWeight: 800 } }, 'Case incoming · Unit BLS-01 en route to scene'),
+              h('div', { className: 'ems-row', style: { marginTop: 12, gap: 16 } }, h(E.TriageBadge, { level: 'red', size: 'xl', solid: true }),
+                h('span', { style: { fontSize: 22, fontWeight: 700 } }, 'Patient not yet onboard'))),
+            h('div', { style: { textAlign: 'right', padding: '16px 24px', borderRadius: 16, background: 'var(--bg-base)', border: '1px solid var(--border-default)' } },
+              h(E.Metric, { label: 'Unit ETA to scene', countdown: 180, size: 'xxl' }))),
+          h('div', null,
+            h('div', { className: 'ems-label', style: { marginBottom: 8 } }, TYPE_LABEL[CASE.type] + ' · from Call Intake'),
+            h('div', { className: 'ems-row', style: { gap: 12 } }, CASE.facts.map(function (k) { return h(E.KeywordChip, { key: k }, k); }))),
+          h(E.AlertBanner, { tone: 'info', icon: 'clock', title: 'Start preparing. The Pre-Arrival replaces this notice when the crew confirms Patient Onboard.' }, 'If the crew records No Transport, this notice is cancelled.'),
+          h(E.Stepper, { current: 1, steps: [{ label: 'Call received', sub: '14:19:51' }, { label: 'Unit dispatched', sub: '14:22:31' }, { label: 'On scene' }, { label: 'Transport' }, { label: 'Arrival ER' }] }),
+          h('div', { style: { marginTop: 'auto' } },
+            decision[0] === 'seen'
+              ? h(E.AlertBanner, { tone: 'success', title: 'Acknowledged · trauma team on standby', actions: h(E.Button, { variant: 'ghost', onClick: function () { decision[1](null); } }, 'Undo') }, 'Dispatch sees the ER is preparing')
+              : h(E.Button, { variant: 'primary', size: 'xl', block: true, icon: 'check', style: { height: 80, fontSize: 20 }, onClick: function () { decision[1]('seen'); } }, 'Acknowledge & Put Trauma Team on Standby'))) :
+        h('section', { className: 'ems-card ems-card-danger', style: { padding: 32, display: 'flex', flexDirection: 'column', gap: 24 }, 'aria-label': 'Incoming case' },
+          h('div', { className: 'ems-row', style: { justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'nowrap' } },
+            h('div', null,
+              h('div', { className: 'ems-row' }, h(E.StatusPill, { tone: 'danger', pulse: true, size: 'lg' }, 'Pre-Arrival · Patient onboard 14:26:05'), h('span', { className: 'ems-muted' }, 'Case #' + CASE.id)),
+              h('h2', { style: { margin: '16px 0 0', fontSize: 40, lineHeight: '48px', fontWeight: 800 } }, 'Incoming · Unit BLS-01'),
+              h('div', { className: 'ems-row', style: { marginTop: 12, gap: 16 } }, h(E.TriageBadge, { level: 'red', size: 'xl', solid: true }),
+                h('span', { style: { fontSize: 22, fontWeight: 700 } }, 'Male, ~30y'), h('span', { className: 'ems-muted', style: { fontSize: 18 } }, 'Identity unknown'))),
+            h('div', { style: { textAlign: 'right', padding: '16px 24px', borderRadius: 16, background: 'var(--bg-base)', border: '1px solid var(--triage-red-line)' } },
+              h(E.Metric, { label: 'ETA', countdown: 345, size: 'xxl', tone: 'red' }))),
+          h('div', null,
+            h('div', { className: 'ems-label', style: { marginBottom: 8 } }, 'Clinical narrative'),
+            h('p', { style: { margin: 0, fontSize: 22, lineHeight: '32px', maxWidth: 820 } }, 'Severe motorcycle accident against a pole, no helmet. Loss of consciousness at scene, apneic. CPR in progress since 14:20. Active head hemorrhage.')),
+          h('div', null,
+            h('div', { className: 'ems-label', style: { marginBottom: 12 } }, 'Critical flags'),
+            h('div', { className: 'ems-row', style: { gap: 12 } }, ['Apnea', 'Active CPR', 'Severe Cranial Trauma'].map(function (k) {
+              return h(E.TriageBadge, { key: k, level: 'red', size: 'xl' }, k);
+            }))),
+          h(E.Stepper, { current: 3, steps: [{ label: 'Call received', sub: '14:19:51' }, { label: 'Unit dispatched', sub: '14:22:31' }, { label: 'On scene', sub: '14:25:40' }, { label: 'Transport', sub: 'Now' }, { label: 'Arrival ER' }] }),
+          h('div', { style: { marginTop: 'auto', display: 'grid', gridTemplateColumns: '1.25fr 1fr', gap: 16 } },
+            decision[0] === 'accept'
+              ? h(E.AlertBanner, { tone: 'success', title: 'Accepted · Resus Bay 2 preparing', actions: h(E.Button, { variant: 'ghost', onClick: function () { decision[1](null); } }, 'Undo') }, 'Trauma team paged 14:24:31 · BLS-01 notified')
+              : h(E.Button, { variant: 'success', size: 'xl', icon: 'check-circle', style: { height: 80, fontSize: 20 }, onClick: function () { decision[1]('accept'); } }, 'Accept Patient & Prepare Resus Bay'),
+            decision[0] === 'decline'
+              ? h(E.AlertBanner, { tone: 'warning', icon: 'reroute', title: 'Dispatch notified · capacity full', actions: h(E.Button, { variant: 'ghost', onClick: function () { decision[1](null); } }, 'Undo') }, 'The dispatcher will choose another Destination Hospital')
+              : h(E.Button, { variant: 'danger-outline', size: 'xl', icon: 'x', style: { height: 80, fontSize: 16, whiteSpace: 'normal', lineHeight: '20px' }, onClick: function () { decision[1]('decline'); } }, 'Decline / Capacity Full (Notify Dispatch)'))),
+        h('div', { className: 'ems-col', style: { gap: 24, minHeight: 0 } },
+          h(E.Card, { title: 'ER Readiness', icon: 'activity', actions: h(E.StatusPill, { tone: 'live' }, 'Real-time') },
+            h('div', { className: 'ems-col' },
+              h('div', { style: { padding: 16, borderRadius: 12, background: 'var(--triage-green-soft)', border: '1px solid var(--triage-green-line)', display: 'flex', alignItems: 'center', gap: 16 } },
+                h(E.Metric, { value: '1', size: 'xl', tone: 'green' }),
+                h('div', { style: { fontSize: 16, fontWeight: 700 } }, 'Resuscitation Bays Available')),
+              h('div', null, bays.map(function (b) {
+                return h('div', { key: b[0], className: 'ems-row', style: { justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--border-default)' } },
+                  h('span', { style: { fontWeight: 600 } }, b[0]), h(E.StatusPill, { tone: b[2] }, b[1]));
+              })))),
+          h(E.Card, { title: 'Trauma Surgical Team', icon: 'users' },
+            h('div', { className: 'ems-col' },
+              h('div', null, h(E.StatusPill, { tone: 'success', size: 'lg', icon: 'check-circle' }, 'Assembled & On Standby')),
+              h('div', { className: 'ems-row', style: { gap: 12, flexWrap: 'nowrap' } },
+                h('span', { className: 'ems-avatars' }, ['TS', 'AN', 'EM', 'RN', 'RT'].map(function (i) { return h(E.Avatar, { key: i, initials: i, name: i, size: 'lg' }); })),
+                h('span', { className: 'ems-muted', style: { fontSize: 13 } }, 'Trauma surgeon, anesthesia, ER physician, 2 nurses')))),
+          h(E.Card, { title: 'Support Services', icon: 'layers', style: { flex: 1 } },
+            h('dl', { className: 'ems-kv', style: { margin: 0, fontSize: 15, alignItems: 'center' } },
+              h('dt', null, 'CT scanner'), h('dd', null, h(E.StatusPill, { tone: 'success' }, 'Available')),
+              h('dt', null, 'Neurosurgery'), h('dd', null, h(E.StatusPill, { tone: 'warning' }, 'On call · 15 min')),
+              h('dt', null, 'Blood bank'), h('dd', null, h(E.StatusPill, { tone: 'success' }, 'O-neg ready')))))));
+  }
+
+  /* Ecosystem: all five frames side by side on one canvas, scaled. */
+  function Ecosystem() {
+    var frames = [['EMS Call Intake', 'Desktop 1440×900', Intake, 1440, 900], ['Dispatch Command Center', 'Desktop 1440×900', Dispatch, 1440, 900],
+      ['Ambulance Copilot', 'Tablet 1024×768', Copilot, 1024, 768], ['Traffic Police Phone', 'Phone 390×844', Traffic, 390, 844], ['Hospital ER Display', 'Wall 1440×900', Hospital, 1440, 900]];
+    var flow = ['Submit case', 'Pick hospital & dispatch', 'Request assist', 'Pre-Arrival'];
+    var H = 300;
+    return h('div', { style: { padding: 32, display: 'flex', flexDirection: 'column', gap: 24, background: 'var(--bg-base)' } },
+      h('div', { className: 'ems-row', style: { justifyContent: 'space-between' } },
+        h('div', null, h('div', { className: 'ems-label' }, 'Shared live incident'), h('div', { style: { fontSize: 24, fontWeight: 800 } }, 'Case #' + CASE.id + ' · Male ~30y · Severe head trauma · Apnea')),
+        h(E.TriageBadge, { level: 'red', size: 'xl', solid: true, pulse: true })),
+      h('div', { style: { display: 'flex', alignItems: 'flex-start', gap: 8 } }, frames.map(function (f, i) {
+        var s = H / f[4];
+        return [
+          h('figure', { key: 'f' + i, style: { margin: 0, display: 'flex', flexDirection: 'column', gap: 8, flex: 'none' } },
+            h('div', { style: { width: f[3] * s, height: H, overflow: 'hidden', borderRadius: 8, border: '1px solid var(--border-strong)', pointerEvents: 'none' } },
+              h('div', { style: { transform: 'scale(' + s + ')', transformOrigin: '0 0', width: f[3], height: f[4] } }, h(f[2], i === 1 ? { initialTab: 'fleet', initialCode: 'red', initialHospital: CASE.hospital } : i === 4 ? { initialStage: 'prearrival' } : null))),
+            h('figcaption', null, h('div', { style: { fontWeight: 700 } }, (i + 1) + '. ' + f[0]), h('div', { className: 'ems-muted', style: { fontSize: 12 } }, f[1]))),
+          i < frames.length - 1 ? h('div', { key: 'a' + i, style: { alignSelf: 'center', marginTop: -40, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 64, flex: 'none', color: 'var(--action)', textAlign: 'center' } },
+            h(E.Icon, { name: 'arrow-right', size: 24 }), h('span', { style: { fontSize: 11, fontWeight: 700, lineHeight: '14px', color: 'var(--text-muted)' } }, flow[i])) : null
+        ];
+      })));
+  }
+
+  E.Screens = { Intake: Intake, Dispatch: Dispatch, Copilot: Copilot, Traffic: Traffic, Hospital: Hospital, Ecosystem: Ecosystem };
+})();
+</script></head><body><div id="root"></div><script>
+var s = (location.hash || '#Intake').slice(1), E = window.EMS;
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(E.Screens[s]));
+</script></body></html>
