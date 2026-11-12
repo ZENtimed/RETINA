@@ -190,3 +190,25 @@ test('suggestionStep: while still shown, a reworded value replaces the text in p
   assert.equal(b.updated, false);
   assert.equal(b.shown, 'Motorcycle hit a pole; unconscious.');
 });
+
+test('suggestionStep: after Use, typing or dismiss, only a value cited from a LATER line comes back (live check)', () => {
+  const at = (value, lineIndex, fieldValue = '') => ({ type: 'incoming', value, heardAt: 't', fieldValue, lineId: 'replay-' + lineIndex, lineIndex });
+  const dismissed = suggestionStep(suggestionStep(EMPTY, at('Motorcycle hit a pole; unconscious.', 3)), { type: 'dismiss' });
+  assert.equal(suggestionStep(dismissed, at('Motorcycle hit a pole. Victim unconscious.', 2)).visible, false, 'earlier line: same facts reworded');
+  assert.equal(suggestionStep(dismissed, at('Motorcycle hit a pole, victim unconscious, not breathing.', 3)).visible, false, 'same line');
+  const later = suggestionStep(dismissed, at('081-234-9999', 9, '081-234-5678'));
+  assert.equal(later.visible, true, 'a later line brings new information');
+  assert.equal(later.updated, true);
+  assert.equal(later.lineIndex, 9);
+});
+
+test('suggestionStep: a summary field (summary: true) never comes back once acted on, even from a later line (live check)', () => {
+  const at = (value, lineIndex, fieldValue = '') => ({ type: 'incoming', value, heardAt: 't', fieldValue, lineId: 'replay-' + lineIndex, lineIndex, summary: true });
+  const first = suggestionStep(EMPTY, at('Motorcycle hit a pole in front of Building A.', 1));
+  assert.equal(first.visible, true);
+  assert.equal(suggestionStep(first, at('Motorcycle hit a pole; unconscious.', 3)).visible, true, 'still shown: replaced in place');
+  for (const ev of ['use', 'type', 'dismiss']) {
+    const acted = suggestionStep(first, { type: ev });
+    assert.equal(suggestionStep(acted, at('Motorcycle hit a pole. Unconscious, not breathing, CPR started.', 11, ev === 'dismiss' ? '' : 'x')).visible, false, ev);
+  }
+});
