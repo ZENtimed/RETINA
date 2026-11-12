@@ -52,4 +52,9 @@ function projectId(env = process.env) {
   try { return JSON.parse(fs.readFileSync(file, 'utf8')).project_id || ''; } catch (err) { return ''; }
 }
 
-module.exports = { loadEnvFiles, clientOptions, credentialProblem, projectId };
+/* The Claude model for Intake form suggestions: SUGGEST_MODEL, else Claude Haiku 5.5 (fast). */
+function suggestModel(env = process.env) {
+  return (env.SUGGEST_MODEL || '').trim() || 'claude-haiku-5-5';
+}
+
+module.exports = { loadEnvFiles, clientOptions, credentialProblem, projectId, suggestModel };

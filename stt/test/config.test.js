@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { clientOptions, loadEnvFiles, credentialProblem, projectId } = require('../src/config');
+const { clientOptions, loadEnvFiles, credentialProblem, projectId, suggestModel } = require('../src/config');
 
 test('projectId: GOOGLE_CLOUD_PROJECT wins; otherwise the key file project_id; otherwise empty', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'retina-proj-'));
@@ -51,4 +51,10 @@ test('loadEnvFiles: reads existing files in order, skips missing ones, never ove
   const loaded = loadEnvFiles([path.join(dir, 'missing.env'), a, b], env);
   assert.deepEqual(loaded, [a, b]);
   assert.deepEqual(env, { ONE: 'from-shell', TWO: 'from-a', THREE: 'from-b' });
+});
+
+test('suggestModel: claude-haiku-5-5 unless SUGGEST_MODEL names another', () => {
+  assert.equal(suggestModel({}), 'claude-haiku-5-5');
+  assert.equal(suggestModel({ SUGGEST_MODEL: ' claude-sonnet-5-5 ' }), 'claude-sonnet-5-5');
+  assert.equal(suggestModel({ SUGGEST_MODEL: '' }), 'claude-haiku-5-5');
 });
