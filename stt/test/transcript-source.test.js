@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTranscriptSource, upsertLine, chipsFor, sttMode, sttSpeakers, relayUrlFor, isNearBottom } = require('../client/transcript-source');
+const { createTranscriptSource, upsertLine, chipsFor, sttMode, sttSpeakers, sttMicLabels, relayUrlFor, isNearBottom } = require('../client/transcript-source');
 
 test('isNearBottom: within 24 px of the end counts as following', () => {
   assert.equal(isNearBottom({ scrollTop: 600, scrollHeight: 1000, clientHeight: 400 }), true);
@@ -282,4 +282,56 @@ test('one-mic mode with no mic at all still falls back to Replay', async () => {
   src.start();
   await flush(); await flush();
   assert.deepEqual(c.modes, ['connecting', 'replay']);
+});
+
+const CABLE_MICS = [{ deviceId: 'cab', label: 'CABLE Output (VB-Audio Virtual Cable)' }, { deviceId: 'hs', label: 'Headset Mic' }];
+
+test('sttMicLabels: ?op= and ?caller= name the mics by label part; the URL wins over window.RETINA_STT', () => {
+  assert.deepEqual(sttMicLabels({ search: '?op=Headset&caller=CABLE' }), { Operator: 'Headset', Caller: 'CABLE' });
+  assert.deepEqual(sttMicLabels({ search: '?caller=CABLE%20Output' }), { Caller: 'CABLE Output' });
+  assert.deepEqual(sttMicLabels({ search: '?caller=CABLE+Output' }), { Caller: 'CABLE Output' });
+  assert.deepEqual(sttMicLabels({ search: '?caller=CABLE' }, { micLabels: { Operator: 'USB', Caller: 'Laptop' } }), { Operator: 'USB', Caller: 'CABLE' });
+  assert.deepEqual(sttMicLabels({ search: '' }, { micLabels: { Operator: 'USB', Caller: 'Laptop' } }), { Operator: 'USB', Caller: 'Laptop' });
+  assert.equal(sttMicLabels({ search: '' }), undefined);
+  assert.equal(sttMicLabels({ search: '?caller=' }), undefined, 'an empty value names nothing');
+});
+
+test('only the Caller named (?caller=CABLE): the Operator is the first other mic, whatever the order', async () => {
+  const h = await goLive({ mics: CABLE_MICS, micLabels: { Caller: 'cable' } });
+  ready(h);
+  h.opened.hs(new ArrayBuffer(1));
+  h.opened.cab(new ArrayBuffer(2));
+  assert.deepEqual(h.sockets.map(s => s.url), [RELAY + '?speaker=Operator', RELAY + '?speaker=Caller']);
+  assert.equal(h.sockets[0].sent[0].byteLength, 1, 'Operator = Headset');
+  assert.equal(h.sockets[1].sent[0].byteLength, 2, 'Caller = CABLE');
+  assert.deepEqual(h.modes, ['connecting', 'live']);
+});
+
+test('only the Operator named: the Caller is the first other mic', async () => {
+  const h = await goLive({ mics: CABLE_MICS, micLabels: { Operator: 'cable' } });
+  ready(h);
+  h.opened.cab(new ArrayBuffer(1));
+  h.opened.hs(new ArrayBuffer(2));
+  assert.equal(h.sockets[0].sent[0].byteLength, 1);
+  assert.equal(h.sockets[1].sent[0].byteLength, 2);
+});
+
+test('a named mic that is not plugged in falls back to Replay (never guessed)', async () => {
+  const h = await goLive({ mics: CABLE_MICS, micLabels: { Caller: 'Telegram' } });
+  assert.deepEqual(h.modes, ['connecting', 'replay']);
+  assert.equal(h.sockets.length, 0);
+});
+
+test('the named Caller with no other mic left falls back to Replay', async () => {
+  const h = await goLive({ mics: [CABLE_MICS[0]], micLabels: { Caller: 'CABLE' } });
+  assert.deepEqual(h.modes, ['connecting', 'replay']);
+});
+
+test('one-mic mode with ?caller=CABLE uses the cable, not the first mic', async () => {
+  const h = makeEnv({ mics: [CABLE_MICS[1], CABLE_MICS[0]] });
+  const src = createTranscriptSource({ mode: 'live', speakers: ['Caller'], replayLines: REPLAY, relayUrl: RELAY, env: h.env, micLabels: { Caller: 'CABLE' } });
+  src.start();
+  await flush(); await flush();
+  assert.equal(typeof h.opened.cab, 'function');
+  assert.equal(h.opened.hs, undefined);
 });

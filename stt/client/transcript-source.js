@@ -41,20 +41,40 @@
      Without it, Live needs two inputs so each line is labelled by its microphone, never guessed (ADR 0002). */
   function sttSpeakers(loc) { return /[?&]mics=1(&|$)/.test(loc.search || '') ? ['Caller'] : SPEAKERS.slice(); }
 
-  /* Operator / Caller by label substring when given, else the inputs in order. Null when it can't label every speaker. */
+  /* ?op=<label part> and ?caller=<label part> name each microphone (for example ?caller=CABLE for a
+     Telegram call routed through VB-Audio Virtual Cable). They override window.RETINA_STT.micLabels. */
+  function urlParam(search, name) {
+    var m = new RegExp('[?&]' + name + '=([^&]*)').exec(search || '');
+    if (!m) return '';
+    try { return decodeURIComponent(m[1].replace(/\+/g, ' ')).trim(); } catch (e) { return ''; }
+  }
+  function sttMicLabels(loc, cfg) {
+    var out = Object.assign({}, cfg && cfg.micLabels);
+    var op = urlParam(loc.search, 'op'), caller = urlParam(loc.search, 'caller');
+    if (op) out.Operator = op;
+    if (caller) out.Caller = caller;
+    return Object.keys(out).length ? out : undefined;
+  }
+
+  /* A named speaker gets the first mic whose label contains its name; a speaker with no name gets the first
+     mic not taken yet, in order. Null when a named mic is missing or a speaker is left without a mic. */
   function pickMics(mics, labels, speakers) {
-    if (speakers.length === 1) {
-      var only = speakers[0], want = labels && labels[only];
-      var m = want ? mics.find(function (x) { return (x.label || '').toLowerCase().indexOf(want.toLowerCase()) >= 0; }) : mics[0];
-      if (!m) return null;
-      var one = {}; one[only] = m; return one;
+    var picked = {}, used = [];
+    var free = function (m) { return m && used.indexOf(m.deviceId) < 0; };
+    for (var i = 0; i < speakers.length; i++) {
+      var want = labels && labels[speakers[i]];
+      if (!want) continue;
+      var m = mics.find(function (x) { return (x.label || '').toLowerCase().indexOf(want.toLowerCase()) >= 0; });
+      if (!free(m)) return null;
+      picked[speakers[i]] = m; used.push(m.deviceId);
     }
-    if (labels && labels.Operator && labels.Caller) {
-      var find = function (s) { return mics.find(function (m) { return (m.label || '').toLowerCase().indexOf(s.toLowerCase()) >= 0; }); };
-      var op = find(labels.Operator), ca = find(labels.Caller);
-      return op && ca && op.deviceId !== ca.deviceId ? { Operator: op, Caller: ca } : null;
+    for (var j = 0; j < speakers.length; j++) {
+      if (picked[speakers[j]]) continue;
+      var next = mics.find(free);
+      if (!next) return null;
+      picked[speakers[j]] = next; used.push(next.deviceId);
     }
-    return mics.length >= 2 ? { Operator: mics[0], Caller: mics[1] } : null;
+    return picked;
   }
 
   function createTranscriptSource(opts) {
@@ -171,5 +191,5 @@
     };
   }
 
-  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, sttSpeakers: sttSpeakers, relayUrlFor: relayUrlFor, isNearBottom: isNearBottom };
+  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, sttSpeakers: sttSpeakers, sttMicLabels: sttMicLabels, relayUrlFor: relayUrlFor, isNearBottom: isNearBottom };
 });

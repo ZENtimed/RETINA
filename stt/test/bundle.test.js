@@ -76,3 +76,8 @@ test('Intake no longer carries a static suggestion list', () => {
   assert.doesNotMatch(src, /TYPE_SUGGEST/);
   assert.match(src, /E\.chipsFor\(/);
 });
+
+test('Intake reads the mic names from the URL (?op= / ?caller=) as well as window.RETINA_STT', () => {
+  assert.match(src, /micLabels: E\.sttMicLabels\(location, window\.RETINA_STT\)/);
+  assert.equal(typeof EMS.sttMicLabels, 'function');
+});
