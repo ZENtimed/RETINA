@@ -11,7 +11,8 @@
   var READY_TIMEOUT = 3000, AUDIO_TIMEOUT = 10000, REPLAY_GAP = 1500, RELAY_PORT = '8787';
 
   function phrases() { return (typeof module === 'object' && module.exports) ? require('./phrases') : root.EMS; }
-  function servedByRelay(loc) { return (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1') && String(loc.port) === RELAY_PORT; }
+  /* The relay serves the page itself, on whatever port it runs (STT_PORT), and only on this machine. */
+  function servedByRelay(loc) { return (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1') && !!loc.port; }
 
   function sttMode(loc) { return servedByRelay(loc) || /[?&]stt=live(&|$)/.test(loc.search || '') ? 'live' : 'replay'; }
   function relayUrlFor(loc) { return servedByRelay(loc) ? 'ws://' + loc.host + '/stt' : 'ws://localhost:' + RELAY_PORT + '/stt'; }

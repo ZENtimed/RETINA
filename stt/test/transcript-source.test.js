@@ -246,4 +246,9 @@ test('sttMode and relayUrlFor', () => {
   assert.equal(sttMode({ hostname: 'claude.ai', port: '', search: '' }), 'replay');
   assert.equal(relayUrlFor({ host: '127.0.0.1:8787', hostname: '127.0.0.1', port: '8787' }), 'ws://127.0.0.1:8787/stt');
   assert.equal(relayUrlFor({ host: 'claude.ai', hostname: 'claude.ai', port: '' }), 'ws://localhost:8787/stt');
+  // The relay can run on any port (STT_PORT): a page served from localhost uses its own port.
+  assert.equal(sttMode({ hostname: 'localhost', port: '8788', search: '' }), 'live');
+  assert.equal(relayUrlFor({ host: 'localhost:8788', hostname: 'localhost', port: '8788' }), 'ws://localhost:8788/stt');
+  // A file opened from disk is never live.
+  assert.equal(sttMode({ hostname: '', port: '', search: '' }), 'replay');
 });
