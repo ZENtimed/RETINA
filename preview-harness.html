@@ -193,6 +193,14 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
 .ems-field-box > .ems-field-trail { position: absolute; right: 12px; color: var(--text-muted); display: flex; }
 .ems-field-locked .ems-input { background: var(--bg-surface); border-style: dashed; color: var(--text-muted); }
 .ems-field-hint { font-size: 12px; line-height: 16px; color: var(--text-muted); }
+/* A value heard on the call, offered under its field (same dashed look as .ems-chip-suggest). */
+.ems-field-suggest { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; padding: 8px 12px; border: 1px dashed var(--action-line); border-radius: var(--radius-sm); color: var(--action); font-size: 14px; line-height: 20px; }
+.ems-field-suggest-icon { flex: none; }
+.ems-field-suggest-value { flex: 1 1 160px; min-width: 0; color: var(--text-primary); font-weight: 600; overflow-wrap: anywhere; }
+.ems-field-suggest-time { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.ems-field-suggest .ems-btn { color: var(--action); }
+.ems-field-suggest-x { display: inline-flex; padding: 4px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text-muted); cursor: pointer; }
+.ems-field-suggest-x:hover { background: var(--action-soft); color: var(--action); }
 .ems-suggest {
   position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 5;
   background: var(--bg-surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
@@ -532,7 +540,8 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
     address: 'Front of Building A, Soi Lat Phrao 1',
     addressShort: 'Soi Lat Phrao 1', coords: [13.8052, 100.5601],
     keywords: ['Unconscious', 'Apnea'], unit: 'BLS-01', unitBase: 'Lat Phrao Base',
-    hospital: 'Hospital A', dispatcher: 'Navin', operator: '#CT-102'
+    hospital: 'Hospital A', dispatcher: 'Navin', operator: '#CT-102',
+    caller: 'Somchai Jaidee', contact: '081-234-5678'
   };
 
   /* ---------------- Icon ---------------- */
@@ -655,8 +664,14 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
       id: idRef.current, className: 'ems-input', value: value, placeholder: p.placeholder, rows: p.rows || 4,
       readOnly: p.locked || p.readOnly, 'aria-describedby': p.hint ? idRef.current + '-h' : undefined,
       onChange: function (e) { set(e.target.value); if (p.onChange) p.onChange(e.target.value); },
-      onFocus: function () { focus[1](true); }, onBlur: function () { setTimeout(function () { focus[1](false); }, 150); }
+      onFocus: function () { focus[1](true); }, onBlur: function () { setTimeout(function () { focus[1](false); }, 150); },
+      /* Tab in an empty field takes the call's suggestion; otherwise Tab moves focus as usual. */
+      onKeyDown: function (e) {
+        if (e.key === 'Tab' && !e.shiftKey && sug && !value) { e.preventDefault(); sug.onUse(); }
+        if (p.onKeyDown) p.onKeyDown(e);
+      }
     });
+    var sug = p.suggestion && !p.locked ? p.suggestion : null;
     var showSuggest = p.suggestions && p.suggestions.length && focus[0] && !p.locked;
     return h('div', { className: cx('ems-field', p.icon && 'ems-field-icon', p.locked && 'ems-field-locked', p.className), style: p.style },
       p.label ? h('div', { className: 'ems-field-head' },
@@ -671,6 +686,13 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
             h(Icon, { name: 'pin', size: 16, style: { marginTop: 2, color: 'var(--text-muted)' } }),
             h('span', null, s.title, s.detail ? h('small', null, s.detail) : null));
         })) : null),
+      /* A value heard on the call: dashed like a suggested chip, and case data only once the operator takes it. */
+      sug ? h('div', { className: 'ems-field-suggest', role: 'status' },
+        h(Icon, { name: 'sparkle', size: 16, className: 'ems-field-suggest-icon' }),
+        h('span', { className: 'ems-field-suggest-value' }, sug.value),
+        h('span', { className: 'ems-field-suggest-time' }, (sug.updated ? 'Updated · ' : '') + 'heard ' + sug.heardAt),
+        h('button', { type: 'button', className: 'ems-btn ems-btn-ghost ems-btn-sm', onClick: sug.onUse }, h(Icon, { name: 'check', size: 14 }), 'Use'),
+        h('button', { type: 'button', className: 'ems-field-suggest-x', 'aria-label': 'Dismiss suggestion', onClick: sug.onDismiss }, h(Icon, { name: 'x', size: 14 }))) : null,
       p.hint ? h('div', { className: 'ems-field-hint', id: idRef.current + '-h' }, p.hint) : null);
   }
 
@@ -1123,6 +1145,8 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
 
   function sttMode(loc) { return servedByRelay(loc) || /[?&]stt=live(&|$)/.test(loc.search || '') ? 'live' : 'replay'; }
   function relayUrlFor(loc) { return servedByRelay(loc) ? 'ws://' + loc.host + '/stt' : 'ws://localhost:' + RELAY_PORT + '/stt'; }
+  /* Form suggestions run only on the relay's own page: it posts to that relay's /suggest. */
+  function suggestUrlFor(loc) { return servedByRelay(loc) ? 'http://' + loc.host + '/suggest' : null; }
 
   /* True when a scroll box is showing its end (within 24 px), so new lines should keep it pinned there. */
   function isNearBottom(el) { return el.scrollHeight - el.scrollTop - el.clientHeight <= 24; }
@@ -1298,7 +1322,96 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
     };
   }
 
-  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, sttSpeakers: sttSpeakers, sttMicLabels: sttMicLabels, relayUrlFor: relayUrlFor, isNearBottom: isNearBottom };
+  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, sttSpeakers: sttSpeakers, sttMicLabels: sttMicLabels, relayUrlFor: relayUrlFor, suggestUrlFor: suggestUrlFor, isNearBottom: isNearBottom };
+});
+/* RETINA Intake form suggestions, browser side: sends finished transcript lines to the relay's POST /suggest
+   and reports the checked fields. Timing: 800 ms after the last finished line, one request in flight,
+   the newest answer wins. suggestionStep decides when a field's suggestion shows (spec 2026-11-13). */
+(function (root, factory) {
+  var api = factory(root);
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  else { root.EMS = root.EMS || {}; Object.assign(root.EMS, api); }
+})(typeof window !== 'undefined' ? window : globalThis, function () {
+  var DEBOUNCE = 800, GUARD = 12000, MAX_LINES = 200;
+
+  function createSuggestSource(opts) {
+    var env = opts.env, handlers = { fields: [], status: [] };
+    var pending = null, lastKey = '0|', debounceTimer = null, guardTimer = null; /* '0|' = no finished line yet: nothing to send */
+    var inFlight = 0, seq = 0, queued = false, off = false, stopped = false, status = 'on';
+
+    function emit(ev, v) { handlers[ev].forEach(function (fn) { fn(v); }); }
+    function setStatus(s) { if (s !== status) { status = s; emit('status', s); } }
+    function clear(t) { if (t !== null) env.clearTimeout(t); return null; }
+
+    function settle(mine) {
+      if (mine !== inFlight) return false;
+      inFlight = 0; guardTimer = clear(guardTimer);
+      return true;
+    }
+    function next() { if (queued && !off && !stopped) { queued = false; send(); } }
+
+    function send() {
+      var mine = ++seq;
+      inFlight = mine;
+      guardTimer = env.setTimeout(function () {
+        guardTimer = null;
+        if (mine !== inFlight || stopped) return;
+        inFlight = 0; setStatus('off'); next();
+      }, GUARD);
+      env.fetch(opts.url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ lines: pending }) })
+        .then(function (r) { return r.json().catch(function () { return null; }).then(function (j) { return { status: r.status, body: j }; }); })
+        .then(function (r) {
+          if (stopped || !settle(mine)) return;
+          if (r.status === 200 && r.body && r.body.fields) { setStatus('on'); emit('fields', r.body.fields); }
+          else if (r.status === 503) { off = true; queued = false; setStatus('off'); }
+          else setStatus('off');
+          next();
+        }, function () {
+          if (stopped || !settle(mine)) return;
+          setStatus('off'); next();
+        });
+    }
+
+    function fire() {
+      debounceTimer = null;
+      if (off || stopped) return;
+      if (inFlight) queued = true; else send();
+    }
+
+    return {
+      on: function (ev, fn) { handlers[ev].push(fn); },
+      update: function (lines) {
+        if (off || stopped) return;
+        var done = (lines || []).filter(function (l) { return !l.partial; });
+        var last = done[done.length - 1];
+        var key = done.length + '|' + (last ? last.id + '|' + last.text : '');
+        if (key === lastKey) return;
+        lastKey = key;
+        pending = done.slice(-MAX_LINES).map(function (l) { return { id: l.id, time: l.time, speaker: l.speaker, text: l.text }; });
+        debounceTimer = clear(debounceTimer);
+        debounceTimer = env.setTimeout(fire, DEBOUNCE);
+      },
+      stop: function () {
+        stopped = true;
+        debounceTimer = clear(debounceTimer);
+        guardTimer = clear(guardTimer);
+      }
+    };
+  }
+
+  /* One field's suggestion. It shows while it differs from the field; Use, typing or dismiss hide it until a different value arrives. */
+  function suggestionStep(st, ev) {
+    if (ev.type === 'incoming') {
+      if (ev.value === st.shown) return st;
+      var field = ev.fieldValue || '';
+      var visible = ev.value !== field;
+      return { shown: ev.value, visible: visible, updated: visible && field !== '', heardAt: ev.heardAt || '' };
+    }
+    if (ev.type === 'use' || ev.type === 'type' || ev.type === 'dismiss') return st.visible ? Object.assign({}, st, { visible: false }) : st;
+    return st;
+  }
+
+  return { createSuggestSource: createSuggestSource, suggestionStep: suggestionStep };
 });
 /* RETINA STT: browser microphone capture. One openMic() per speaker; chunks are 100 ms of 16 kHz PCM16. */
 (function (root, factory) {
@@ -1399,8 +1512,16 @@ window.EMS.STT_WORKLET_SRC = "/* RETINA STT: AudioWorklet that forwards each mon
     ['14:20:11', 'Operator', 'Is anyone with you able to start CPR?'],
     ['14:20:15', 'Caller', 'A man is starting CPR now. There is a lot of bleeding from his head.'],
     ['14:20:21', 'Operator', 'Stay on the line. Help is being arranged.'],
-    ['14:20:30', 'Caller', 'He is about thirty. No helmet.']
+    ['14:20:30', 'Caller', 'He is about thirty. No helmet.'],
+    ['14:20:33', 'Operator', 'Can I have your name and a number to call you back?'],
+    ['14:20:37', 'Caller', 'Somchai Jaidee. My number is 081 234 5678.'],
+    ['14:20:42', 'Operator', 'Does he have any medical conditions you know of?'],
+    ['14:20:45', 'Caller', "I don't know him, I have no idea."]
   ];
+  /* Intake form suggestions: the six fields the call can fill, their demo values off the relay, and an empty suggestion. */
+  var FORM_KEYS = ['callerName', 'contactNumber', 'patient', 'underlyingDisease', 'symptoms', 'address'];
+  var DEMO_FORM = { callerName: CASE.caller, contactNumber: CASE.contact, patient: CASE.patient, underlyingDisease: 'Unknown / None recorded', symptoms: CASE.symptoms, address: CASE.address };
+  var NO_SUGGESTION = { shown: null, visible: false, updated: false, heardAt: '' };
 
   /* 1. EMS Call Intake (1440 x 900) */
   function Intake() {
@@ -1408,6 +1529,46 @@ window.EMS.STT_WORKLET_SRC = "/* RETINA STT: AudioWorklet that forwards each mon
     var type = useState(null), facts = useState([]), switchTo = useState(null);
     var tl = useState([]), mode = useState('replay');
     var transcriptEnd = React.useRef(null), followTranscript = React.useRef(true);
+    /* Form suggestions (relay page only): fields start empty there and are offered values heard on the call. */
+    var sugUrl = E.suggestUrlFor(location);
+    var form = useState(function () { var f = {}; FORM_KEYS.forEach(function (k) { f[k] = sugUrl ? '' : DEMO_FORM[k]; }); return f; });
+    var sug = useState(function () { var s = {}; FORM_KEYS.forEach(function (k) { s[k] = NO_SUGGESTION; }); return s; });
+    var sugStatus = useState('on');
+    var sugSrc = React.useRef(null), formNow = React.useRef(form[0]), linesNow = React.useRef(tl[0]);
+    formNow.current = form[0]; linesNow.current = tl[0];
+    function step(k, ev) { sug[1](function (prev) { var n = Object.assign({}, prev); n[k] = E.suggestionStep(prev[k], ev); return n; }); }
+    function setFormValue(k, v) { form[1](function (prev) { var n = Object.assign({}, prev); n[k] = v; return n; }); }
+    function formField(k) {
+      var st = sug[0][k];
+      return {
+        value: form[0][k],
+        onChange: function (v) { setFormValue(k, v); step(k, { type: 'type' }); },
+        suggestion: st.visible ? { value: st.shown, heardAt: st.heardAt, updated: st.updated,
+          onUse: function () { setFormValue(k, st.shown); step(k, { type: 'use' }); },
+          onDismiss: function () { step(k, { type: 'dismiss' }); } } : null
+      };
+    }
+    useEffect(function () {
+      if (!sugUrl) return;
+      var src = E.createSuggestSource({ url: sugUrl,
+        env: { fetch: window.fetch.bind(window), setTimeout: setTimeout.bind(window), clearTimeout: clearTimeout.bind(window) } });
+      src.on('fields', function (fields) {
+        sug[1](function (prev) {
+          var n = Object.assign({}, prev);
+          FORM_KEYS.forEach(function (k) {
+            var f = fields[k];
+            if (!f) return;
+            var line = linesNow.current.find(function (l) { return l.id === f.lineId; });
+            n[k] = E.suggestionStep(prev[k], { type: 'incoming', value: f.value, heardAt: line ? line.time : '', fieldValue: formNow.current[k] });
+          });
+          return n;
+        });
+      });
+      src.on('status', sugStatus[1]);
+      sugSrc.current = src;
+      return function () { src.stop(); sugSrc.current = null; };
+    }, []);
+    useEffect(function () { if (sugSrc.current) sugSrc.current.update(tl[0]); }, [tl[0]]);
     /* Changing type clears the chips, so ask first when there are any. */
     function pickType(t) {
       if (t === type[0]) return;
@@ -1455,7 +1616,8 @@ window.EMS.STT_WORKLET_SRC = "/* RETINA STT: AudioWorklet that forwards each mon
           }),
           h('div', { ref: transcriptEnd, className: 'ems-row', style: { padding: 16, color: 'var(--text-muted)' } }, h(E.Waveform, { bars: 10 }), 'Listening…')),
         /* Center: facts only. Intake never sets a triage code; the dispatcher does. */
-        h(E.Card, { title: 'Patient & Incident Intake', subtitle: 'Draft case #' + CASE.id + ' · facts only, triage is set by Dispatch', icon: 'user', scroll: true },
+        h(E.Card, { title: 'Patient & Incident Intake', subtitle: 'Draft case #' + CASE.id + ' · facts only, triage is set by Dispatch', icon: 'user', scroll: true,
+          actions: sugUrl && sugStatus[0] === 'off' ? h('span', { className: 'ems-muted', style: { fontSize: 12 } }, 'Suggestions off') : null },
           h('div', { className: 'ems-col' },
             h('div', { style: { padding: 16, borderRadius: 12, border: '1px solid var(--triage-red-line)', background: 'var(--bg-base)' } },
               h('div', { className: 'ems-row', style: { marginBottom: 12, justifyContent: 'space-between' } },
@@ -1465,11 +1627,11 @@ window.EMS.STT_WORKLET_SRC = "/* RETINA STT: AudioWorklet that forwards each mon
                 return h(E.KeywordChip, { key: k, onRemove: function () { kw[1](kw[0].filter(function (x) { return x !== k; })); } }, k);
               }) : h('span', { className: 'ems-muted' }, 'No critical keywords. ', h('button', { className: 'ems-btn ems-btn-ghost ems-btn-sm', onClick: function () { kw[1](CASE.keywords); } }, 'Restore')))),
             h('div', { style: grid('1fr 1fr') },
-              h(E.Field, { label: 'Caller Name', defaultValue: 'Somchai Jaidee', icon: 'user' }),
-              h(E.Field, { label: 'Contact Number', defaultValue: '081-xxx-xxxx', icon: 'phone' }),
-              h(E.Field, { label: 'Patient Demographics', defaultValue: CASE.patient }),
-              h(E.Field, { label: 'U / D', tag: 'Optional', defaultValue: 'Unknown / None recorded' })),
-            h(E.Field, { label: 'Symptom Description', multiline: true, rows: 4, defaultValue: CASE.symptoms }),
+              h(E.Field, Object.assign({ label: 'Caller Name', icon: 'user' }, formField('callerName'))),
+              h(E.Field, Object.assign({ label: 'Contact Number', icon: 'phone' }, formField('contactNumber'))),
+              h(E.Field, Object.assign({ label: 'Patient Demographics' }, formField('patient'))),
+              h(E.Field, Object.assign({ label: 'U / D', tag: 'Optional' }, formField('underlyingDisease')))),
+            h(E.Field, Object.assign({ label: 'Symptom Description', multiline: true, rows: 4 }, formField('symptoms'))),
             h('div', { className: 'ems-col', style: { gap: 8 } },
               h('div', { className: 'ems-field-head' }, h('span', { className: 'ems-label' }, 'Case Type'), h('span', { className: 'ems-field-tag' }, 'Required · pick one')),
               h('div', { role: 'radiogroup', 'aria-label': 'Case Type', style: grid('1fr 1fr', { gap: 8 }) }, ['moi', 'noi'].map(function (t) {
@@ -1485,8 +1647,8 @@ window.EMS.STT_WORKLET_SRC = "/* RETINA STT: AudioWorklet that forwards each mon
               h('div', null, facts[0].length + ' ' + (type[0] === 'moi' ? 'injury' : 'illness') + ' keyword' + (facts[0].length === 1 ? '' : 's') + ' will be removed: ' + facts[0].join(', ') + '.'))),
         /* Right: location lock */
         h(E.Card, { title: 'Location Lock', icon: 'pin', actions: h(E.StatusPill, { tone: 'info', icon: 'crosshair' }, 'Accuracy: High (GPS)'), bodyStyle: { display: 'flex', flexDirection: 'column', gap: 16 } },
-          h(E.Field, { icon: 'search', defaultValue: CASE.address, locked: locked[0], label: 'Search address or landmark',
-            suggestions: [{ title: CASE.address, detail: 'Chatuchak, Bangkok 10900 · 12 m from caller GPS' }, { title: 'Building A, Lat Phrao Soi 1 (rear gate)', detail: 'Chatuchak, Bangkok · 48 m' }] }),
+          h(E.Field, Object.assign(formField('address'), { icon: 'search', locked: locked[0], label: 'Search address or landmark',
+            suggestions: [{ title: CASE.address, detail: 'Chatuchak, Bangkok 10900 · 12 m from caller GPS' }, { title: 'Building A, Lat Phrao Soi 1 (rear gate)', detail: 'Chatuchak, Bangkok · 48 m' }] })),
           h(E.MapView, { height: 200, radius: 12, view: [210, 150, 260, 162], pinScale: 1.7, ariaLabel: 'Incident location map',
             pins: [{ kind: pin, x: 340, y: 236, label: locked[0] ? 'Locked' : 'Caller GPS' }] },
             h(E.MapOverlay, { style: { left: 12, bottom: 12, padding: '8px 12px', borderRadius: 8 } },
