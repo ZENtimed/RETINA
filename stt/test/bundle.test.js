@@ -57,6 +57,10 @@ test('TranscriptBadge shows Connecting… while the live path starts', () => {
   assert.deepEqual(b.children, ['Connecting…']);
 });
 
+test('Intake passes the speakers from the URL (?mics=1 one-mic test mode)', () => {
+  assert.match(src, /speakers: E\.sttSpeakers\(location\)/);
+});
+
 test('Intake follows new transcript lines', () => {
   assert.match(src, /E\.isNearBottom\(/);
 });

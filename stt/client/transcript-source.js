@@ -37,8 +37,18 @@
     return out;
   }
 
-  /* Operator / Caller by label substring when given, else the first two inputs in order. Null when it can't label both. */
-  function pickMics(mics, labels) {
+  /* ?mics=1 is a test mode for a machine with one microphone: it is the Caller, and the Operator is not transcribed.
+     Without it, Live needs two inputs so each line is labelled by its microphone, never guessed (ADR 0002). */
+  function sttSpeakers(loc) { return /[?&]mics=1(&|$)/.test(loc.search || '') ? ['Caller'] : SPEAKERS.slice(); }
+
+  /* Operator / Caller by label substring when given, else the inputs in order. Null when it can't label every speaker. */
+  function pickMics(mics, labels, speakers) {
+    if (speakers.length === 1) {
+      var only = speakers[0], want = labels && labels[only];
+      var m = want ? mics.find(function (x) { return (x.label || '').toLowerCase().indexOf(want.toLowerCase()) >= 0; }) : mics[0];
+      if (!m) return null;
+      var one = {}; one[only] = m; return one;
+    }
     if (labels && labels.Operator && labels.Caller) {
       var find = function (s) { return mics.find(function (m) { return (m.label || '').toLowerCase().indexOf(s.toLowerCase()) >= 0; }); };
       var op = find(labels.Operator), ca = find(labels.Caller);
@@ -50,7 +60,9 @@
   function createTranscriptSource(opts) {
     var env = opts.env, handlers = { line: [], mode: [] };
     var stopped = false, failed = false, live = false, readyTimer = null, audioTimer = null, replayTimer = null;
-    var sockets = {}, mics = {}, ready = {}, heard = {}, counter = { Operator: 0, Caller: 0 }, pending = { Operator: null, Caller: null };
+    var speakers = opts.speakers || SPEAKERS;
+    var sockets = {}, mics = {}, ready = {}, heard = {}, counter = {}, pending = {};
+    speakers.forEach(function (s) { counter[s] = 0; pending[s] = null; });
 
     function emit(ev, v) { handlers[ev].forEach(function (fn) { fn(v); }); }
     function clock() { return env.now().toLocaleTimeString('en-GB', { hour12: false }); }
@@ -69,7 +81,7 @@
     function closeLive() {
       if (readyTimer !== null) { env.clearTimeout(readyTimer); readyTimer = null; }
       if (audioTimer !== null) { env.clearTimeout(audioTimer); audioTimer = null; }
-      SPEAKERS.forEach(function (s) {
+      speakers.forEach(function (s) {
         var ws = sockets[s];
         if (ws) { ws.onmessage = ws.onclose = ws.onerror = null; ws.close(); }
         if (mics[s]) mics[s].close();
@@ -80,7 +92,7 @@
     function fail() {
       if (failed || stopped) return;
       failed = true;
-      SPEAKERS.forEach(function (s) { if (pending[s]) emit('line', { id: pending[s].id, removed: true }); pending[s] = null; });
+      speakers.forEach(function (s) { if (pending[s]) emit('line', { id: pending[s].id, removed: true }); pending[s] = null; });
       closeLive();
       emit('mode', 'replay');
       startReplay();
@@ -89,7 +101,7 @@
     function onMessage(speaker, msg) {
       if (msg.type === 'ready') {
         ready[speaker] = true;
-        if (SPEAKERS.every(function (s) { return ready[s]; }) && readyTimer !== null) {
+        if (speakers.every(function (s) { return ready[s]; }) && readyTimer !== null) {
           env.clearTimeout(readyTimer); readyTimer = null;
           audioTimer = env.setTimeout(function () { audioTimer = null; fail(); }, AUDIO_TIMEOUT);
           checkLive();
@@ -107,7 +119,7 @@
     /* Live only once both relays are ready and audio is actually reaching them from both mics. */
     function checkLive() {
       if (live || failed || stopped) return;
-      if (!SPEAKERS.every(function (s) { return ready[s] && heard[s]; })) return;
+      if (!speakers.every(function (s) { return ready[s] && heard[s]; })) return;
       live = true;
       if (audioTimer !== null) { env.clearTimeout(audioTimer); audioTimer = null; }
       emit('mode', 'live');
@@ -129,18 +141,18 @@
     function startLive() {
       emit('mode', 'connecting');
       Promise.resolve().then(env.listMics).then(function (list) {
-        var picked = pickMics(list || [], opts.micLabels);
+        var picked = pickMics(list || [], opts.micLabels, speakers);
         if (!picked) throw new Error('need two microphones');
-        return Promise.allSettled(SPEAKERS.map(function (s) { return env.openMic(picked[s].deviceId, env.workletSrc); }));
+        return Promise.allSettled(speakers.map(function (s) { return env.openMic(picked[s].deviceId, env.workletSrc); }));
       }).then(function (results) {
         var opened = results.filter(function (r) { return r.status === 'fulfilled'; }).map(function (r) { return r.value; });
-        if (stopped || failed || opened.length < SPEAKERS.length) {
+        if (stopped || failed || opened.length < speakers.length) {
           opened.forEach(function (m) { m.close(); });
-          if (opened.length < SPEAKERS.length) throw new Error('microphone unavailable');
+          if (opened.length < speakers.length) throw new Error('microphone unavailable');
           return;
         }
-        SPEAKERS.forEach(function (s, i) { mics[s] = opened[i]; });
-        SPEAKERS.forEach(openSocket);
+        speakers.forEach(function (s, i) { mics[s] = opened[i]; });
+        speakers.forEach(openSocket);
         if (!failed) readyTimer = env.setTimeout(function () { readyTimer = null; fail(); }, READY_TIMEOUT);
       }).catch(fail);
     }
@@ -159,5 +171,5 @@
     };
   }
 
-  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, relayUrlFor: relayUrlFor, isNearBottom: isNearBottom };
+  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, sttSpeakers: sttSpeakers, relayUrlFor: relayUrlFor, isNearBottom: isNearBottom };
 });

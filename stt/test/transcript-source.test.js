@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTranscriptSource, upsertLine, chipsFor, sttMode, relayUrlFor, isNearBottom } = require('../client/transcript-source');
+const { createTranscriptSource, upsertLine, chipsFor, sttMode, sttSpeakers, relayUrlFor, isNearBottom } = require('../client/transcript-source');
 
 test('isNearBottom: within 24 px of the end counts as following', () => {
   assert.equal(isNearBottom({ scrollTop: 600, scrollHeight: 1000, clientHeight: 400 }), true);
@@ -251,4 +251,35 @@ test('sttMode and relayUrlFor', () => {
   assert.equal(relayUrlFor({ host: 'localhost:8788', hostname: 'localhost', port: '8788' }), 'ws://localhost:8788/stt');
   // A file opened from disk is never live.
   assert.equal(sttMode({ hostname: '', port: '', search: '' }), 'replay');
+});
+
+test('sttSpeakers: ?mics=1 is the one-mic test mode (Caller only); otherwise Operator and Caller', () => {
+  assert.deepEqual(sttSpeakers({ search: '?mics=1' }), ['Caller']);
+  assert.deepEqual(sttSpeakers({ search: '?x=1&mics=1' }), ['Caller']);
+  assert.deepEqual(sttSpeakers({ search: '' }), ['Operator', 'Caller']);
+  assert.deepEqual(sttSpeakers({ search: '?mics=2' }), ['Operator', 'Caller']);
+});
+
+test('one-mic mode: the single mic is the Caller, one socket, live once it is ready and audio flows', async () => {
+  const h = makeEnv({ mics: [{ deviceId: 'a', label: 'Laptop mic' }] });
+  const src = createTranscriptSource({ mode: 'live', speakers: ['Caller'], replayLines: REPLAY, relayUrl: RELAY, env: h.env });
+  const c = collect(src);
+  src.start();
+  await flush(); await flush();
+  assert.deepEqual(h.sockets.map(s => s.url), [RELAY + '?speaker=Caller']);
+  h.sockets[0].emitMessage({ type: 'ready', speaker: 'Caller' });
+  h.opened.a(new ArrayBuffer(2));
+  assert.deepEqual(c.modes, ['connecting', 'live']);
+  h.sockets[0].emitMessage({ type: 'final', speaker: 'Caller', text: 'Motorcycle hit a pole.' });
+  assert.equal(c.lines[0].speaker, 'Caller');
+  assert.deepEqual(c.lines[0].chips, [{ chip: 'Motorcycle vs pole', type: 'moi' }]);
+});
+
+test('one-mic mode with no mic at all still falls back to Replay', async () => {
+  const h = makeEnv({ mics: [] });
+  const src = createTranscriptSource({ mode: 'live', speakers: ['Caller'], replayLines: REPLAY, relayUrl: RELAY, env: h.env });
+  const c = collect(src);
+  src.start();
+  await flush(); await flush();
+  assert.deepEqual(c.modes, ['connecting', 'replay']);
 });
