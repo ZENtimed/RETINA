@@ -21,3 +21,15 @@ The **Call Transcript** at Intake was only a scripted replay of the EM-104 call.
 - Two streams cost twice as much per minute as one. That is acceptable for a demo that lasts a few minutes.
 - The design system needs a **partial** (grey) state on `TranscriptLine` and a Live / Replay badge in the transcript header, in Figma and in `components/bundle.js`.
 - Wording that isn't in the phrase table produces no suggestion. The operator can still type any chip by hand, so a miss costs time but never puts wrong data on the Case.
+
+## Implementation notes
+
+Built in `stt/` (see `CLAUDE.md`, "Live speech-to-text"), plan `docs/superpowers/plans/2026-11-12-live-speech-to-text.md`.
+
+- **Spike (two streams, Thai + English):** not run yet. It needs a Google Cloud project and two recordings (`node stt/scripts/spike.js th.wav en.wav`). Until it passes, auto-detect (`languageCodes: ["auto"]`) in streaming is unconfirmed. If it fails, set `STT_LANGUAGES=th-TH,en-US`.
+- **Microphones:** Operator is the first audio input and Caller the second, overridable by label. With fewer than two inputs Intake uses Replay, because one mic can't label speakers.
+- **When Live is tried:** only on the page the relay serves (`localhost:8787`). The relay refuses WebSocket connections from any other browser origin, so no other site can spend the Google key. Elsewhere, including the claude.ai artifact, Intake starts in Replay.
+- **Fallback:** no `ready` within 3 s, a denied mic, a relay error or a dropped socket. It is one-way for the session. Finished lines stay, the grey partial is removed, and the replay lines follow.
+- **Replay pace:** the first line at once, then one line every 1.5 s.
+- **Chips:** the phrase table (`stt/client/phrases.js`) gives each chip one Case Type. ChipInput offers only the chips of the chosen Case Type that finished lines produced. Thai matching ignores spaces that the recogniser inserts. A phrase right after `ไม่`, `not` or `no longer` is not suggested.
+- **UI:** `TranscriptLine` has a `partial` state (grey, no keyword marks, no copy button). `TranscriptBadge` (`Live` / `Replay`) replaces the waveform in the transcript card header, because both together squeezed the 296px header.
