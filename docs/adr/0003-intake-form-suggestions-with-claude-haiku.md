@@ -35,7 +35,7 @@ This decision covers the form fields only. ADR 0002's choice of a phrase table f
 - **The key stays on the relay.** `ANTHROPIC_API_KEY` in `stt/.env` is never sent to the page and never logged. Without a key, the form works as before, and the card header shows "Suggestions off".
 - **Each call costs a little.** The page sends one small request per finished line, at low effort on Haiku.
 - **Suggestions trail speech by about 1–3 s.** If Anthropic is slow or fails, suggestions pause and the transcript is not affected.
-- **The quote and digit checks stop invented values.** A value that is only implied, such as a phone number spoken as words that the transcript didn't turn into digits, produces no suggestion, never a wrong one.
+- **The checks make invented values much less likely, but don't rule them out.** A quote must appear as whole words (at least 4 characters) in the line it cites, and a phone number must be a whole Thai number (9 or 10 digits, starting with 0) spoken as one run of digits in that line. That proves the words were said, not that the value reads them correctly: for name, patient, U / D, symptoms and address, fidelity still rests on the model. That is why every value waits for a person to take it. A number spoken as words, or cut across two lines, produces no suggestion.
 - **The EM-104 replay call gained four lines** (name, number, underlying disease), so Replay can show all six suggestions. The demo number is the fake `081-234-5678`.
 
 ## Implementation notes

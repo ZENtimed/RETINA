@@ -142,12 +142,12 @@ test('stop() clears timers and ignores later responses', async () => {
   assert.equal(h.requests.length, 1);
 });
 
-const EMPTY = { shown: null, visible: false, updated: false, heardAt: '' };
-const incoming = (value, fieldValue = '', heardAt = '14:20:37') => ({ type: 'incoming', value, heardAt, fieldValue });
+const EMPTY = { shown: null, visible: false, updated: false, heardAt: '', lineId: null };
+const incoming = (value, fieldValue = '', heardAt = '14:20:37', lineId = 'L9') => ({ type: 'incoming', value, heardAt, fieldValue, lineId });
 
 test('suggestionStep: first suggestion on an empty field shows; the same value again changes nothing', () => {
   const a = suggestionStep(EMPTY, incoming('Somchai Jaidee'));
-  assert.deepEqual(a, { shown: 'Somchai Jaidee', visible: true, updated: false, heardAt: '14:20:37' });
+  assert.deepEqual(a, { shown: 'Somchai Jaidee', visible: true, updated: false, heardAt: '14:20:37', lineId: 'L9' });
   assert.equal(suggestionStep(a, incoming('Somchai Jaidee', '', '14:20:50')), a);
 });
 
@@ -157,19 +157,36 @@ test('suggestionStep: Use or typing hides it; a different value later shows agai
   assert.equal(used.visible, false);
   assert.equal(suggestionStep(a, { type: 'type' }).visible, false);
   assert.equal(suggestionStep(used, incoming('081-234-5678', '081-234-5678')).visible, false);
-  const b = suggestionStep(used, incoming('081-234-9999', '081-234-5678', '14:20:44'));
-  assert.deepEqual(b, { shown: '081-234-9999', visible: true, updated: true, heardAt: '14:20:44' });
+  const b = suggestionStep(used, incoming('081-234-9999', '081-234-5678', '14:20:44', 'L12'));
+  assert.deepEqual(b, { shown: '081-234-9999', visible: true, updated: true, heardAt: '14:20:44', lineId: 'L12' });
 });
 
 test('suggestionStep: a dismissed value stays hidden; a different one shows again', () => {
   const d = suggestionStep(suggestionStep(EMPTY, incoming('Male, about 30')), { type: 'dismiss' });
   assert.equal(d.visible, false);
   assert.equal(suggestionStep(d, incoming('Male, about 30')).visible, false);
-  assert.equal(suggestionStep(d, incoming('Male, about 35')).visible, true);
+  assert.equal(suggestionStep(d, incoming('Male, about 35', '', '14:20:50', 'L11')).visible, true);
 });
 
 test('suggestionStep: a suggestion equal to what the field already holds stays hidden', () => {
   const a = suggestionStep(EMPTY, incoming('Unknown', 'Unknown'));
   assert.equal(a.visible, false);
   assert.equal(a.shown, 'Unknown');
+});
+
+test('suggestionStep: a reworded value from the same line stays hidden after Use, typing or dismiss (review I3)', () => {
+  const a = suggestionStep(EMPTY, incoming('Motorcycle hit a pole. Unconscious.', '', '14:20:06', 'L3'));
+  for (const ev of ['use', 'type', 'dismiss']) {
+    const acted = suggestionStep(a, { type: ev });
+    const reworded = suggestionStep(acted, incoming('A motorcycle hit a pole; the victim is unconscious.', 'typed by the call taker', '14:20:06', 'L3'));
+    assert.equal(reworded.visible, false, ev);
+  }
+});
+
+test('suggestionStep: while still shown, a reworded value replaces the text in place (not marked Updated)', () => {
+  const a = suggestionStep(EMPTY, incoming('Motorcycle hit a pole.', '', '14:20:02', 'L2'));
+  const b = suggestionStep(a, incoming('Motorcycle hit a pole; unconscious.', '', '14:20:06', 'L3'));
+  assert.equal(b.visible, true);
+  assert.equal(b.updated, false);
+  assert.equal(b.shown, 'Motorcycle hit a pole; unconscious.');
 });

@@ -73,13 +73,15 @@
     };
   }
 
-  /* One field's suggestion. It shows while it differs from the field; Use, typing or dismiss hide it until a different value arrives. */
+  /* One field's suggestion. It shows while it differs from the field; Use, typing or dismiss hide it until a different value
+     arrives from a different line. A summary reworded from the same line stays hidden, so it doesn't keep popping back. */
   function suggestionStep(st, ev) {
     if (ev.type === 'incoming') {
       if (ev.value === st.shown) return st;
+      if (!st.visible && st.shown !== null && ev.lineId && ev.lineId === st.lineId) return st;
       var field = ev.fieldValue || '';
       var visible = ev.value !== field;
-      return { shown: ev.value, visible: visible, updated: visible && field !== '', heardAt: ev.heardAt || '' };
+      return { shown: ev.value, visible: visible, updated: visible && field !== '', heardAt: ev.heardAt || '', lineId: ev.lineId || null };
     }
     if (ev.type === 'use' || ev.type === 'type' || ev.type === 'dismiss') return st.visible ? Object.assign({}, st, { visible: false }) : st;
     return st;

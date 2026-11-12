@@ -106,3 +106,34 @@ test('suggest: refusal, max_tokens, bad JSON and a thrown Anthropic.APIError bec
     assert.doesNotMatch(logged.join('\n'), /Somchai|Lat Phrao/, 'the transcript never reaches the log');
   }
 });
+
+/* ---- final review fixes ---- */
+test('quote must be a whole-word match of at least 4 characters (review I1)', () => {
+  const lines = [{ id: 'L1', time: 't', speaker: 'Caller', text: 'The victim has no helmet, he is about thirty.' }];
+  const tooShort = checkFields({ patient: { value: 'Male, about 45', quote: 'he', lineId: 'L1' } }, lines);
+  const midWord = checkFields({ patient: { value: 'Male', quote: 'elme', lineId: 'L1' } }, lines);
+  const ok = checkFields({ patient: { value: 'Male, about 30', quote: 'he is about thirty', lineId: 'L1' } }, lines);
+  assert.deepEqual(tooShort, {});
+  assert.deepEqual(midWord, {});
+  assert.equal(ok.patient.value, 'Male, about 30');
+});
+
+test('a phone number must be a whole Thai number, 9 or 10 digits starting with 0 (review I2)', () => {
+  const lines = [
+    { id: 'A', time: 't', speaker: 'Caller', text: 'My number is 081 234' },
+    { id: 'B', time: 't', speaker: 'Caller', text: 'It is oh 81 234 5678.' },
+    { id: 'C', time: 't', speaker: 'Caller', text: 'Call 0812345678901 now.' },
+    { id: 'D', time: 't', speaker: 'Caller', text: 'Office line 02 123 4567.' }
+  ];
+  const f = (value, quote, lineId) => checkFields({ contactNumber: { value, quote, lineId } }, lines);
+  assert.deepEqual(f('081-234', '081 234', 'A'), {}, 'fragment');
+  assert.deepEqual(f('81-234-5678', '81 234 5678', 'B'), {}, 'leading zero missing');
+  assert.deepEqual(f('081-234-5678', '0812345678', 'C'), {}, 'part of a longer digit run');
+  assert.equal(f('02-123-4567', '02 123 4567', 'D').contactNumber.value, '02-123-4567');
+});
+
+test('lineId in square brackets still matches its line (review: bracketed ids)', () => {
+  const f = checkFields({ callerName: { value: 'Somchai Jaidee', quote: 'Somchai Jaidee', lineId: '[replay-9]' } }, LINES);
+  assert.deepEqual(f.callerName, { value: 'Somchai Jaidee', quote: 'Somchai Jaidee', lineId: 'replay-9' });
+  assert.doesNotMatch(buildSuggestRequest({ model: 'm', lines: LINES }).system, /square brackets/);
+});

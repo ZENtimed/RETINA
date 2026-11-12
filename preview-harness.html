@@ -1399,13 +1399,15 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
     };
   }
 
-  /* One field's suggestion. It shows while it differs from the field; Use, typing or dismiss hide it until a different value arrives. */
+  /* One field's suggestion. It shows while it differs from the field; Use, typing or dismiss hide it until a different value
+     arrives from a different line. A summary reworded from the same line stays hidden, so it doesn't keep popping back. */
   function suggestionStep(st, ev) {
     if (ev.type === 'incoming') {
       if (ev.value === st.shown) return st;
+      if (!st.visible && st.shown !== null && ev.lineId && ev.lineId === st.lineId) return st;
       var field = ev.fieldValue || '';
       var visible = ev.value !== field;
-      return { shown: ev.value, visible: visible, updated: visible && field !== '', heardAt: ev.heardAt || '' };
+      return { shown: ev.value, visible: visible, updated: visible && field !== '', heardAt: ev.heardAt || '', lineId: ev.lineId || null };
     }
     if (ev.type === 'use' || ev.type === 'type' || ev.type === 'dismiss') return st.visible ? Object.assign({}, st, { visible: false }) : st;
     return st;
@@ -1521,7 +1523,7 @@ window.EMS.STT_WORKLET_SRC = "/* RETINA STT: AudioWorklet that forwards each mon
   /* Intake form suggestions: the six fields the call can fill, their demo values off the relay, and an empty suggestion. */
   var FORM_KEYS = ['callerName', 'contactNumber', 'patient', 'underlyingDisease', 'symptoms', 'address'];
   var DEMO_FORM = { callerName: CASE.caller, contactNumber: CASE.contact, patient: CASE.patient, underlyingDisease: 'Unknown / None recorded', symptoms: CASE.symptoms, address: CASE.address };
-  var NO_SUGGESTION = { shown: null, visible: false, updated: false, heardAt: '' };
+  var NO_SUGGESTION = { shown: null, visible: false, updated: false, heardAt: '', lineId: null };
 
   /* 1. EMS Call Intake (1440 x 900) */
   function Intake() {
@@ -1559,7 +1561,7 @@ window.EMS.STT_WORKLET_SRC = "/* RETINA STT: AudioWorklet that forwards each mon
             var f = fields[k];
             if (!f) return;
             var line = linesNow.current.find(function (l) { return l.id === f.lineId; });
-            n[k] = E.suggestionStep(prev[k], { type: 'incoming', value: f.value, heardAt: line ? line.time : '', fieldValue: formNow.current[k] });
+            n[k] = E.suggestionStep(prev[k], { type: 'incoming', value: f.value, heardAt: line ? line.time : '', lineId: f.lineId, fieldValue: formNow.current[k] });
           });
           return n;
         });

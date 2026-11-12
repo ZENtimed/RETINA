@@ -17,7 +17,7 @@ const SYSTEM = [
   'You help an emergency call taker fill an intake form while the call is still going.',
   'Read the call transcript and fill each field only with facts the caller or the operator actually said.',
   'Write in English and keep every value short.',
-  'For each value, set quote to words copied exactly from one transcript line, and lineId to that line\'s id in square brackets.',
+  'For each value, set quote to words copied exactly from one transcript line, and lineId to the id shown at the start of that line, without the brackets.',
   'The quote must contain the fact the value states. For a phone number, the quote must contain every digit of it.',
   'Symptoms is a factual summary: no diagnosis, and no triage words such as critical, urgent or Code Red, because Dispatch sets triage.',
   'If the call has not covered a field yet, set it to null. Never guess.'
@@ -59,8 +59,15 @@ function buildSuggestRequest({ model, lines }) {
 /* Lower-case, drop sentence punctuation, collapse whitespace. */
 function norm(s) { return String(s).toLowerCase().replace(/[.,!?;:'"]/g, '').replace(/\s+/g, ' ').trim(); }
 const digits = s => String(s).replace(/\D/g, '');
+/* A model may echo the id with its brackets: [replay-9] -> replay-9. */
+const bareId = id => id.trim().replace(/^\[(.*)\]$/, '$1').trim();
+/* A Thai phone number: 9 (landline) or 10 (mobile) digits, starting with 0. */
+const THAI_PHONE = /^0\d{8,9}$/;
+/* Each run of digits in a line, allowing spaces and dashes between groups ("081 234 5678"). */
+const digitRuns = text => (String(text).match(/\d[\d\s-]*\d|\d/g) || []).map(digits);
 
-/* Keep a field only when its quote appears in the line it names; a phone number also needs the same digits as its quote. */
+/* Keep a field only when its quote (4+ characters) appears as whole words in the line it names.
+   A phone number must also be a whole Thai number, spoken as one run of digits in that line. */
 function checkFields(raw, lines) {
   const out = {};
   if (!raw || typeof raw !== 'object') return out;
@@ -70,11 +77,15 @@ function checkFields(raw, lines) {
     if (!f || typeof f !== 'object') continue;
     const { value, quote, lineId } = f;
     if (typeof value !== 'string' || typeof quote !== 'string' || typeof lineId !== 'string') continue;
-    if (!value.trim() || !norm(quote)) continue;
-    const line = byId.get(lineId);
-    if (!line || !norm(line.text).includes(norm(quote))) continue;
-    if (key === 'contactNumber' && (digits(value).length < 6 || digits(value) !== digits(quote))) continue;
-    out[key] = { value, quote, lineId };
+    const q = norm(quote);
+    if (!value.trim() || q.length < 4) continue;
+    const id = bareId(lineId), line = byId.get(id);
+    if (!line || !(' ' + norm(line.text) + ' ').includes(' ' + q + ' ')) continue;
+    if (key === 'contactNumber') {
+      const d = digits(value);
+      if (!THAI_PHONE.test(d) || digits(quote) !== d || !digitRuns(line.text).includes(d)) continue;
+    }
+    out[key] = { value, quote, lineId: id };
   }
   return out;
 }
