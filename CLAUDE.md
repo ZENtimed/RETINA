@@ -44,7 +44,7 @@ The Intake **Call Transcript** can run live (ADR 0002). `stt/` is one Node packa
 - `stt/src/`: the relay. It serves `preview-harness.html` at `/` and bridges one WebSocket per microphone (`/stt?speaker=Operator|Caller`) to one Google Speech-to-Text V2 stream (model `chirp_3`). It listens on `127.0.0.1` only and refuses browser pages from any other origin, because it spends your Google key.
 - `stt/client/`: browser code (phrase table, PCM conversion, mic capture, the transcript source with Live → Replay fallback). These files are UMD, so `node --test` can test them, and they are copied into `bundle.js` by `scripts/inject-stt-client.py`.
 
-To run it live:
+To run it live (first-time Google setup, step by step: `docs/stt-google-setup.md`):
 
 ```bash
 cd stt && npm install
