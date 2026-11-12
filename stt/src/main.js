@@ -1,5 +1,7 @@
 // Start the RETINA STT relay on 127.0.0.1. The Google credentials stay here (Application Default Credentials).
 const path = require('node:path');
+const { loadEnvFiles } = require('./config');
+const envFiles = loadEnvFiles([path.join(__dirname, '../.env'), path.join(__dirname, '../../.env')]);
 const { createServer } = require('./server');
 const { parseLanguages, buildStreamingRequest, createGoogleStream, createRotatingStream, makeClient } = require('./google');
 
@@ -28,6 +30,8 @@ const server = createServer({
 });
 
 server.listen(port, '127.0.0.1', () => {
+  const auth = process.env.GOOGLE_APPLICATION_CREDENTIALS ? 'key file' : process.env.GOOGLE_API_KEY ? 'API key' : 'gcloud login';
+  console.log(`env files: ${envFiles.length ? envFiles.map(f => path.relative(process.cwd(), f) || f).join(', ') : 'none'} · auth: ${auth}`);
   console.log(`languages=${JSON.stringify(languages)} location=${location}`);
   console.log(`RETINA STT relay on http://localhost:${port}/#Intake`);
 });

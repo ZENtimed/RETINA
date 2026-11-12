@@ -4,3 +4,6 @@ ds/
 stt/.env
 *-key.json
 credentials*.json
+.env
+.env.*
+__pycache__/

@@ -79,6 +79,23 @@ RETINA STT relay on http://localhost:8787/#Intake
 
 The `$env:` values last only for that PowerShell window. Set them again in each new window.
 
+**Or use a `.env` file** so you don't retype them. Put it at `RETINA/stt/.env` or `RETINA/.env`; both are ignored by git, so they are never committed:
+
+```
+GOOGLE_CLOUD_PROJECT=<your-project-id>
+# Pick one way to sign in:
+GOOGLE_API_KEY=<API key from APIs & Services → Credentials>
+# GOOGLE_APPLICATION_CREDENTIALS=C:\keys\retina-stt.json
+```
+
+Values already set in the PowerShell window win over the file. The server says which sign-in it used, without printing the secret:
+
+```
+env files: .env · auth: API key
+```
+
+> **API key:** create it in **APIs & Services → Credentials → Create credentials → API key**, then click **Restrict key** and allow only **Cloud Speech-to-Text API**. Google may not accept a plain API key for streaming speech. If the server reports `UNAUTHENTICATED` or `PERMISSION_DENIED`, use Option A or B above.
+
 ## Step 5: Check it works
 
 1. **Optional, without microphones:** record a short Thai clip and a short English clip, convert them, and stream both to Google:

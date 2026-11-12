@@ -78,8 +78,8 @@ function createRotatingStream({ open, maxMs = 270000, setTimeout: set = setTimeo
   };
 }
 
-function makeClient(location) {
-  return new v2.SpeechClient({ apiEndpoint: `${location}-speech.googleapis.com` });
+function makeClient(location, env = process.env) {
+  return new v2.SpeechClient(require('./config').clientOptions(location, env));
 }
 
 module.exports = { parseLanguages, buildStreamingRequest, mapResponse, createGoogleStream, createRotatingStream, makeClient };

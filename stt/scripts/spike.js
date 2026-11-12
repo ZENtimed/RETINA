@@ -1,6 +1,8 @@
 // Two-stream Chirp 3 spike (ADR 0002): stream two WAV files to Google at the same time, in real time.
 // Usage: GOOGLE_CLOUD_PROJECT=<id> [STT_LANGUAGES=th-TH,en-US] [STT_LOCATION=us] node scripts/spike.js a.wav b.wav
 const fs = require('node:fs');
+const path = require('node:path');
+require('../src/config').loadEnvFiles([path.join(__dirname, '../.env'), path.join(__dirname, '../../.env')]);
 const { parseLanguages, buildStreamingRequest, createGoogleStream, makeClient } = require('../src/google');
 
 function readPcm(file) {
