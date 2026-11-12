@@ -5,10 +5,10 @@ const envFiles = loadEnvFiles([path.join(__dirname, '../.env'), path.join(__dirn
 const { createServer } = require('./server');
 const { parseLanguages, buildStreamingRequest, createGoogleStream, createRotatingStream, makeClient } = require('./google');
 
-const project = process.env.GOOGLE_CLOUD_PROJECT;
-if (!project) { console.error('Set GOOGLE_CLOUD_PROJECT'); process.exit(1); }
 const problem = require('./config').credentialProblem();
 if (problem) { console.error(problem); process.exit(1); }
+const project = require('./config').projectId();
+if (!project) { console.error('Set GOOGLE_CLOUD_PROJECT (in stt/.env or this window)'); process.exit(1); }
 const location = process.env.STT_LOCATION || 'us';
 const languages = parseLanguages(process.env.STT_LANGUAGES);
 const port = Number(process.env.STT_PORT || 8787);
@@ -29,6 +29,12 @@ const server = createServer({
       }
     });
   }
+});
+
+server.on('error', err => {
+  if (err.code === 'EADDRINUSE') console.error(`Port ${port} is already in use: another relay is probably still running. Close that window (or press Ctrl+C in it), or set STT_PORT to another port.`);
+  else console.error(err.message);
+  process.exit(1);
 });
 
 server.listen(port, '127.0.0.1', () => {

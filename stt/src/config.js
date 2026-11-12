@@ -44,4 +44,12 @@ function credentialProblem(env = process.env, hasGcloudLogin = gcloudLoginExists
     'or run "gcloud auth application-default login". See docs/stt-google-setup.md, Step 3.';
 }
 
-module.exports = { loadEnvFiles, clientOptions, credentialProblem };
+/* The Google Cloud project: GOOGLE_CLOUD_PROJECT, or else the project_id inside the service-account key file. */
+function projectId(env = process.env) {
+  if (env.GOOGLE_CLOUD_PROJECT) return env.GOOGLE_CLOUD_PROJECT.trim();
+  const file = env.GOOGLE_APPLICATION_CREDENTIALS;
+  if (!file || !fs.existsSync(file)) return '';
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')).project_id || ''; } catch (err) { return ''; }
+}
+
+module.exports = { loadEnvFiles, clientOptions, credentialProblem, projectId };

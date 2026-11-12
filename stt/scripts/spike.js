@@ -21,7 +21,9 @@ function readPcm(file) {
 
 const files = process.argv.slice(2);
 if (files.length !== 2) { console.error('usage: node scripts/spike.js a.wav b.wav'); process.exit(2); }
-const project = process.env.GOOGLE_CLOUD_PROJECT;
+const problem = require('../src/config').credentialProblem();
+if (problem) { console.error(problem); process.exit(1); }
+const project = require('../src/config').projectId();
 if (!project) { console.error('Set GOOGLE_CLOUD_PROJECT'); process.exit(1); }
 const pcms = files.map(readPcm);
 if (pcms.some(p => !p)) { console.error('need 16 kHz mono 16-bit WAV'); process.exit(1); }
