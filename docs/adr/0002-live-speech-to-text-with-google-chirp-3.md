@@ -26,6 +26,7 @@ The **Call Transcript** at Intake was only a scripted replay of the EM-104 call.
 
 Built in `stt/` (see `CLAUDE.md`, "Live speech-to-text"), plan `docs/superpowers/plans/2026-11-12-live-speech-to-text.md`.
 
+- **Form suggestions, 2026-11-13:** the Intake form fields (not the chips) now get suggestions from Claude Haiku; see ADR 0003. The chip decision above is unchanged.
 - **Language, 2026-11-13:** the relay now defaults to English only (`STT_LANGUAGES` unset = `en-US`) for speed and accuracy. The spike passed with `en-US` (8/8 lines). Thai needs `STT_LANGUAGES=th-TH,en-US` or `auto`.
 - **Spike (two streams, Thai + English):** not run yet. It needs a Google Cloud project and two recordings (`node stt/scripts/spike.js th.wav en.wav`). Until it passes, auto-detect (`languageCodes: ["auto"]`) in streaming is unconfirmed. If it fails, set `STT_LANGUAGES=th-TH,en-US`.
 - **Microphones:** Operator is the first audio input and Caller the second, overridable by label. With fewer than two inputs Intake uses Replay, because one mic can't label speakers.
