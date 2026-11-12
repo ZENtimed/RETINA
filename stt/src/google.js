@@ -1,9 +1,11 @@
 // Google Cloud Speech-to-Text V2 (Chirp 3) streaming adapter. One stream per microphone.
 const { v2 } = require('@google-cloud/speech');
 
+/* English only by default (fastest and most accurate for the demo). STT_LANGUAGES=auto turns detection back on;
+   STT_LANGUAGES=th-TH,en-US lists the languages to expect. */
 function parseLanguages(value) {
   const list = String(value || '').split(',').map(s => s.trim()).filter(Boolean);
-  return list.length ? list : ['auto'];
+  return list.length ? list : ['en-US'];
 }
 
 function buildStreamingRequest({ project, location, languages }) {

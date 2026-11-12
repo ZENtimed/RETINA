@@ -65,9 +65,10 @@ test('createRotatingStream: a fresh stream before the 5-minute limit, writes swi
   assert.deepEqual(opened[2].writes, [], 'no writes after end');
 });
 
-test('parseLanguages defaults to auto and splits a list', () => {
-  assert.deepEqual(parseLanguages(undefined), ['auto']);
-  assert.deepEqual(parseLanguages(''), ['auto']);
+test('parseLanguages defaults to English only (en-US), splits a list, and still accepts auto', () => {
+  assert.deepEqual(parseLanguages(undefined), ['en-US']);
+  assert.deepEqual(parseLanguages(''), ['en-US']);
+  assert.deepEqual(parseLanguages('auto'), ['auto']);
   assert.deepEqual(parseLanguages(' th-TH, en-US '), ['th-TH', 'en-US']);
 });
 

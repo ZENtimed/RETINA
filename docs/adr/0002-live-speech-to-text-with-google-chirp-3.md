@@ -26,6 +26,7 @@ The **Call Transcript** at Intake was only a scripted replay of the EM-104 call.
 
 Built in `stt/` (see `CLAUDE.md`, "Live speech-to-text"), plan `docs/superpowers/plans/2026-11-12-live-speech-to-text.md`.
 
+- **Language, 2026-11-13:** the relay now defaults to English only (`STT_LANGUAGES` unset = `en-US`) for speed and accuracy. The spike passed with `en-US` (8/8 lines). Thai needs `STT_LANGUAGES=th-TH,en-US` or `auto`.
 - **Spike (two streams, Thai + English):** not run yet. It needs a Google Cloud project and two recordings (`node stt/scripts/spike.js th.wav en.wav`). Until it passes, auto-detect (`languageCodes: ["auto"]`) in streaming is unconfirmed. If it fails, set `STT_LANGUAGES=th-TH,en-US`.
 - **Microphones:** Operator is the first audio input and Caller the second, overridable by label. With fewer than two inputs Intake uses Replay, because one mic can't label speakers.
 - **When Live is tried:** only on the page the relay serves (`localhost:8787`). The relay refuses WebSocket connections from any other browser origin, so no other site can spend the Google key. Elsewhere, including the claude.ai artifact, Intake starts in Replay.

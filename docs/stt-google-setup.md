@@ -73,7 +73,7 @@ npm start
 You should see:
 
 ```
-languages=["auto"] location=us
+languages=["en-US"] location=us
 RETINA STT relay on http://localhost:8787/#Intake
 ```
 
@@ -128,7 +128,7 @@ If the server can't sign in, it stops at start-up and says why, for example `Key
 | Badge shows **Replay** straight away, and the server prints no `stream open` lines | The page didn't reach the server | Open `http://localhost:8787/#Intake` (not the file), allow the mic, and connect two mics |
 | Server prints `Could not load the default credentials` | No credentials found | Do Step 3 again. For Option B, check the path in `GOOGLE_APPLICATION_CREDENTIALS` |
 | Server prints `PERMISSION_DENIED` | The API is off, billing is off, or the role is missing | Check Steps 1–3 |
-| Server prints an error about the language `auto` | Auto-detect doesn't work for this setup | Run `$env:STT_LANGUAGES = "th-TH,en-US"` and restart |
+| Thai speech comes out as nonsense English | The relay listens for English only (`en-US`) by default | For Thai too, set `STT_LANGUAGES=th-TH,en-US` (or `auto`) in `stt/.env` and restart |
 | Badge stays on **Connecting…** | Chrome is holding audio until you interact with the page | Click anywhere on the page |
 | Operator and Caller are swapped | Chrome lists the mics in a different order | In the browser console run `window.RETINA_STT = { micLabels: { Operator: 'Headset', Caller: 'USB' } }` (use parts of your mic names), then reload |
 
