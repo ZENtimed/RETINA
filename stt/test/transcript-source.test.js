@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTranscriptSource, upsertLine, chipsFor, sttMode, sttSpeakers, sttMicLabels, relayUrlFor, isNearBottom } = require('../client/transcript-source');
+const { createTranscriptSource, upsertLine, chipsFor, sttMode, sttSpeakers, sttMicLabels, relayUrlFor, suggestUrlFor, isNearBottom } = require('../client/transcript-source');
 
 test('isNearBottom: within 24 px of the end counts as following', () => {
   assert.equal(isNearBottom({ scrollTop: 600, scrollHeight: 1000, clientHeight: 400 }), true);
@@ -334,4 +334,11 @@ test('one-mic mode with ?caller=CABLE uses the cable, not the first mic', async 
   await flush(); await flush();
   assert.equal(typeof h.opened.cab, 'function');
   assert.equal(h.opened.hs, undefined);
+});
+
+test('suggestUrlFor: the relay page posts to its own /suggest; any other page has no suggestions', () => {
+  assert.equal(suggestUrlFor({ host: 'localhost:8788', hostname: 'localhost', port: '8788' }), 'http://localhost:8788/suggest');
+  assert.equal(suggestUrlFor({ host: '127.0.0.1:8787', hostname: '127.0.0.1', port: '8787' }), 'http://127.0.0.1:8787/suggest');
+  assert.equal(suggestUrlFor({ host: 'claude.ai', hostname: 'claude.ai', port: '' }), null);
+  assert.equal(suggestUrlFor({ host: '', hostname: '', port: '' }), null);
 });

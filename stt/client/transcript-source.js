@@ -16,6 +16,8 @@
 
   function sttMode(loc) { return servedByRelay(loc) || /[?&]stt=live(&|$)/.test(loc.search || '') ? 'live' : 'replay'; }
   function relayUrlFor(loc) { return servedByRelay(loc) ? 'ws://' + loc.host + '/stt' : 'ws://localhost:' + RELAY_PORT + '/stt'; }
+  /* Form suggestions run only on the relay's own page: it posts to that relay's /suggest. */
+  function suggestUrlFor(loc) { return servedByRelay(loc) ? 'http://' + loc.host + '/suggest' : null; }
 
   /* True when a scroll box is showing its end (within 24 px), so new lines should keep it pinned there. */
   function isNearBottom(el) { return el.scrollHeight - el.scrollTop - el.clientHeight <= 24; }
@@ -191,5 +193,5 @@
     };
   }
 
-  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, sttSpeakers: sttSpeakers, sttMicLabels: sttMicLabels, relayUrlFor: relayUrlFor, isNearBottom: isNearBottom };
+  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, sttSpeakers: sttSpeakers, sttMicLabels: sttMicLabels, relayUrlFor: relayUrlFor, suggestUrlFor: suggestUrlFor, isNearBottom: isNearBottom };
 });
