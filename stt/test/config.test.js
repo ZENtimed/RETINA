@@ -3,18 +3,33 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { clientOptions, loadEnvFiles } = require('../src/config');
+const { clientOptions, loadEnvFiles, credentialProblem } = require('../src/config');
 
-test('clientOptions: regional endpoint, no key when none is set', () => {
+test('clientOptions: regional endpoint only (API keys are not accepted by Speech V2)', () => {
   assert.deepEqual(clientOptions('us', {}), { apiEndpoint: 'us-speech.googleapis.com' });
+  assert.deepEqual(clientOptions('eu', { GOOGLE_API_KEY: 'k' }), { apiEndpoint: 'eu-speech.googleapis.com' });
 });
 
-test('clientOptions: GOOGLE_API_KEY is passed as apiKey', () => {
-  assert.deepEqual(clientOptions('eu', { GOOGLE_API_KEY: ' k123 ' }), { apiEndpoint: 'eu-speech.googleapis.com', apiKey: 'k123' });
+test('credentialProblem: an existing key file is fine', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'retina-cred-'));
+  const key = path.join(dir, 'k.json'); fs.writeFileSync(key, '{}');
+  assert.equal(credentialProblem({ GOOGLE_APPLICATION_CREDENTIALS: key }, () => false), null);
 });
 
-test('clientOptions: a key file wins over an API key (Google refuses both at once)', () => {
-  assert.deepEqual(clientOptions('us', { GOOGLE_API_KEY: 'k', GOOGLE_APPLICATION_CREDENTIALS: 'C:\\keys\\a.json' }), { apiEndpoint: 'us-speech.googleapis.com' });
+test('credentialProblem: a key file path that does not exist is named', () => {
+  assert.match(credentialProblem({ GOOGLE_APPLICATION_CREDENTIALS: 'C:\\nope\\k.json' }, () => false), /Key file not found: C:\\nope\\k\.json/);
+});
+
+test('credentialProblem: a gcloud login is fine', () => {
+  assert.equal(credentialProblem({}, () => true), null);
+});
+
+test('credentialProblem: only an API key explains that API keys do not work', () => {
+  assert.match(credentialProblem({ GOOGLE_API_KEY: 'AIza' }, () => false), /does not accept API keys/);
+});
+
+test('credentialProblem: nothing at all says how to sign in', () => {
+  assert.match(credentialProblem({}, () => false), /No Google credentials/);
 });
 
 test('loadEnvFiles: reads existing files in order, skips missing ones, never overrides the shell', () => {

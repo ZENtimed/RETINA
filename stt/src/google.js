@@ -50,7 +50,7 @@ function createGoogleStream({ client, request, onPartial, onFinal, onError }) {
     }
   });
   // Errors after end() are the cancel of a stream we closed ourselves.
-  stream.on('error', err => { if (!ended) onError(err); });
+  stream.on('error', err => { if (!ended) { ended = true; onError(err); } });
   // Google closing the stream on its own leaves nothing to transcribe with: treat it as an error.
   stream.on('end', () => { if (!ended) { ended = true; onError(new Error('Google stream ended')); } });
   stream.write(request);
@@ -78,8 +78,8 @@ function createRotatingStream({ open, maxMs = 270000, setTimeout: set = setTimeo
   };
 }
 
-function makeClient(location, env = process.env) {
-  return new v2.SpeechClient(require('./config').clientOptions(location, env));
+function makeClient(location) {
+  return new v2.SpeechClient(require('./config').clientOptions(location));
 }
 
 module.exports = { parseLanguages, buildStreamingRequest, mapResponse, createGoogleStream, createRotatingStream, makeClient };

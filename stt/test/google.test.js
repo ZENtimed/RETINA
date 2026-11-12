@@ -12,6 +12,16 @@ test('createGoogleStream: an end we did not ask for is reported as an error', ()
   assert.deepEqual(errors, ['Google stream ended']);
 });
 
+test('createGoogleStream: an error followed by end is reported once', () => {
+  const stream = new PassThrough({ objectMode: true });
+  stream.write = () => true;
+  const errors = [];
+  createGoogleStream({ client: { _streamingRecognize: () => stream }, request: {}, onPartial() {}, onFinal() {}, onError: e => errors.push(e.message) });
+  stream.emit('error', new Error('16 UNAUTHENTICATED'));
+  stream.emit('end');
+  assert.deepEqual(errors, ['16 UNAUTHENTICATED']);
+});
+
 test('createGoogleStream: our own end() is not an error', () => {
   const stream = new PassThrough({ objectMode: true });
   stream.write = () => true;
@@ -122,11 +132,21 @@ test('createGoogleStream routes data and errors, and end() ends the stream', asy
   stream.emit('data', { results: [r('Motorcycle hit a pole.', { isFinal: true, languageCode: 'en-us' }), r('No')] });
   assert.deepEqual(finals, [['Motorcycle hit a pole.', 'en-us']]);
   assert.deepEqual(partials, ['No']);
+  let ended = false;
+  stream.end = () => { ended = true; };
+  s.end();
+  assert.equal(ended, true, 'end() ends a healthy stream');
+});
+
+test('createGoogleStream reports a stream error; end() afterwards is a no-op', () => {
+  const { client, stream } = fakeClient();
+  const errors = [];
+  const s = createGoogleStream({ client, request: {}, onPartial() {}, onFinal() {}, onError: e => errors.push(e) });
   const err = new Error('quota');
   stream.emit('error', err);
   assert.deepEqual(errors, [err]);
   let ended = false;
   stream.end = () => { ended = true; };
   s.end();
-  assert.equal(ended, true);
+  assert.equal(ended, false);
 });

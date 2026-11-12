@@ -7,6 +7,8 @@ const { parseLanguages, buildStreamingRequest, createGoogleStream, createRotatin
 
 const project = process.env.GOOGLE_CLOUD_PROJECT;
 if (!project) { console.error('Set GOOGLE_CLOUD_PROJECT'); process.exit(1); }
+const problem = require('./config').credentialProblem();
+if (problem) { console.error(problem); process.exit(1); }
 const location = process.env.STT_LOCATION || 'us';
 const languages = parseLanguages(process.env.STT_LANGUAGES);
 const port = Number(process.env.STT_PORT || 8787);
@@ -30,7 +32,7 @@ const server = createServer({
 });
 
 server.listen(port, '127.0.0.1', () => {
-  const auth = process.env.GOOGLE_APPLICATION_CREDENTIALS ? 'key file' : process.env.GOOGLE_API_KEY ? 'API key' : 'gcloud login';
+  const auth = process.env.GOOGLE_APPLICATION_CREDENTIALS ? 'key file' : 'gcloud login';
   console.log(`env files: ${envFiles.length ? envFiles.map(f => path.relative(process.cwd(), f) || f).join(', ') : 'none'} · auth: ${auth}`);
   console.log(`languages=${JSON.stringify(languages)} location=${location}`);
   console.log(`RETINA STT relay on http://localhost:${port}/#Intake`);
