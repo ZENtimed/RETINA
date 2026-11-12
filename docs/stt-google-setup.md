@@ -2,7 +2,7 @@
 
 RETINA's Intake screen can transcribe a call live. The two microphones stream through a small local server (`stt/`) to **Google Cloud Speech-to-Text** (model Chirp 3). That server needs Google credentials. This guide sets them up once. It takes about 15 minutes.
 
-> **"API key" or credentials?** Google's streaming speech service doesn't use a plain API-key string. The server signs in with **Google credentials** instead, either your own Google login (Option A) or a service-account key file (Option B). Both work with no code change.
+> **An API key does not work.** Google's Speech-to-Text V2 (the version we stream to) rejects plain API keys with `UNAUTHENTICATED: API keys are not supported by this API`. We tested this. The server must sign in with **Google credentials** instead: your own Google login (Option A) or a service-account key file (Option B). Both work with no code change.
 
 ## What you need
 
@@ -83,18 +83,17 @@ The `$env:` values last only for that PowerShell window. Set them again in each 
 
 ```
 GOOGLE_CLOUD_PROJECT=<your-project-id>
-# Pick one way to sign in:
-GOOGLE_API_KEY=<API key from APIs & Services → Credentials>
-# GOOGLE_APPLICATION_CREDENTIALS=C:\keys\retina-stt.json
+# Option B only (leave it out for Option A):
+GOOGLE_APPLICATION_CREDENTIALS=C:\keys\retina-stt.json
 ```
 
 Values already set in the PowerShell window win over the file. The server says which sign-in it used, without printing the secret:
 
 ```
-env files: .env · auth: API key
+env files: .env · auth: key file
 ```
 
-> **API key:** create it in **APIs & Services → Credentials → Create credentials → API key**, then click **Restrict key** and allow only **Cloud Speech-to-Text API**. Google may not accept a plain API key for streaming speech. If the server reports `UNAUTHENTICATED` or `PERMISSION_DENIED`, use Option A or B above.
+If the server can't sign in, it stops at start-up and says why, for example `Key file not found: …` or `does not accept API keys`.
 
 ## Step 5: Check it works
 
