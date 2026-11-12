@@ -25,6 +25,34 @@ test('negated phrases are not suggested', () => {
   assert.deepEqual(chips('He is not unconscious'), []);
 });
 
+test('common English negations are not suggested', () => {
+  assert.deepEqual(chips('no chest pain'), []);
+  assert.deepEqual(chips("he wasn't unconscious"), []);
+  assert.deepEqual(chips('he wasn’t unconscious'), []);
+  assert.deepEqual(chips("she isn't bleeding from her head"), []);
+  assert.deepEqual(chips('never unconscious'), []);
+  assert.deepEqual(chips('denies chest pain'), []);
+});
+
+test('common Thai negations are not suggested', () => {
+  assert.deepEqual(chips('ไม่ได้หมดสติ'), []);
+  assert.deepEqual(chips('ไม่ได้หยุดหายใจ'), []);
+  assert.deepEqual(chips('ไม่มีเลือดออกที่หัว'), []);
+  assert.deepEqual(chips('ยังไม่หมดสติ'), []);
+  assert.deepEqual(chips('ไม่ได้มีเจ็บหน้าอก'), []);
+});
+
+test('negation of one phrase does not hide a later positive one', () => {
+  assert.deepEqual(chips('No chest pain, but he is unconscious'), ['Unconscious']);
+});
+
+test('over-broad phrases are gone', () => {
+  assert.deepEqual(chips('He is allergic to penicillin'), []);
+  assert.deepEqual(chips('Please come very fast'), []);
+  assert.deepEqual(chips('She is allergic to seafood'), ['Food allergy']);
+  assert.deepEqual(chips('แพ้อาหารทะเล'), ['Food allergy']);
+});
+
 test('case-insensitive, deduped, typed', () => {
   assert.deepEqual(suggestChips('NO HELMET, no helmet'), [{ chip: 'No helmet', type: 'moi' }]);
 });

@@ -13,7 +13,7 @@
       en: ['no helmet', 'not wearing a helmet', 'without a helmet'],
       th: ['ไม่ใส่หมวก', 'ไม่สวมหมวกกันน็อก', 'ไม่ได้ใส่หมวกกันน็อค'] },
     { chip: 'High-energy impact', type: 'moi',
-      en: ['high speed', 'very fast', 'flew off'],
+      en: ['high speed', 'flew off'],
       th: ['ความเร็วสูง', 'ขับเร็วมาก', 'กระเด็น'] },
     { chip: 'Unconscious', type: 'noi',
       en: ['unconscious', 'not responding', 'passed out'],
@@ -28,15 +28,16 @@
       en: ['chest pain', 'pain in his chest', 'pain in her chest'],
       th: ['เจ็บหน้าอก', 'แน่นหน้าอก'] },
     { chip: 'Food allergy', type: 'noi',
-      en: ['food allergy', 'allergic to'],
-      th: ['แพ้อาหาร'] },
+      en: ['food allergy', 'allergic to food', 'allergic to seafood', 'allergic to shrimp', 'allergic to peanuts', 'allergic to nuts'],
+      th: ['แพ้อาหาร', 'แพ้กุ้ง', 'แพ้ถั่ว'] },
     { chip: 'Stroke signs', type: 'noi',
       en: ['face drooping', 'slurred speech'],
       th: ['ปากเบี้ยว', 'พูดไม่ชัด', 'แขนขาอ่อนแรง'] }
   ];
 
-  var EN_NEGATIONS = ['not ', 'no longer '];
-  var TH_NEGATION = 'ไม่';
+  /* A phrase is not suggested when the text right before it ends with one of these. */
+  var EN_NEGATIONS = ['not ', 'no longer ', 'no ', "wasn't ", "isn't ", "aren't ", "weren't ", 'never ', 'denies ', 'without '];
+  var TH_NEGATIONS = ['ไม่', 'ไม่ได้', 'ไม่มี', 'ไม่ได้มี', 'ยังไม่'];
 
   function isWordChar(c) { return /[a-z0-9]/.test(c || ''); }
 
@@ -53,14 +54,15 @@
 
   function hasThai(text, phrase) {
     for (var i = text.indexOf(phrase); i >= 0; i = text.indexOf(phrase, i + 1)) {
-      if (text.slice(0, i).slice(-TH_NEGATION.length) === TH_NEGATION) continue;
+      var before = text.slice(0, i);
+      if (TH_NEGATIONS.some(function (n) { return before.slice(-n.length) === n; })) continue;
       return true;
     }
     return false;
   }
 
   function suggestChips(text) {
-    var base = String(text || '').normalize('NFC').toLowerCase();
+    var base = String(text || '').normalize('NFC').toLowerCase().replace(/[‘’]/g, "'");
     var en = base.replace(/\s+/g, ' ');
     var th = base.replace(/\s+/g, '');
     return PHRASES.filter(function (p) {

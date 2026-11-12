@@ -6,13 +6,18 @@
   else { root.EMS = root.EMS || {}; Object.assign(root.EMS, api); }
 })(typeof window !== 'undefined' ? window : globalThis, function (root) {
   var SPEAKERS = ['Operator', 'Caller'];
-  var READY_TIMEOUT = 3000, REPLAY_GAP = 1500, RELAY_PORT = '8787';
+  /* READY_TIMEOUT counts from the sockets opening (not from the mic permission prompt).
+     AUDIO_TIMEOUT gives Chrome time to start a suspended AudioContext on the first click. */
+  var READY_TIMEOUT = 3000, AUDIO_TIMEOUT = 10000, REPLAY_GAP = 1500, RELAY_PORT = '8787';
 
   function phrases() { return (typeof module === 'object' && module.exports) ? require('./phrases') : root.EMS; }
   function servedByRelay(loc) { return (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1') && String(loc.port) === RELAY_PORT; }
 
   function sttMode(loc) { return servedByRelay(loc) || /[?&]stt=live(&|$)/.test(loc.search || '') ? 'live' : 'replay'; }
   function relayUrlFor(loc) { return servedByRelay(loc) ? 'ws://' + loc.host + '/stt' : 'ws://localhost:' + RELAY_PORT + '/stt'; }
+
+  /* True when a scroll box is showing its end (within 24 px), so new lines should keep it pinned there. */
+  function isNearBottom(el) { return el.scrollHeight - el.scrollTop - el.clientHeight <= 24; }
 
   function upsertLine(lines, line) {
     if (line.removed) return lines.filter(function (l) { return l.id !== line.id; });
@@ -43,8 +48,8 @@
 
   function createTranscriptSource(opts) {
     var env = opts.env, handlers = { line: [], mode: [] };
-    var stopped = false, failed = false, readyTimer = null, replayTimer = null;
-    var sockets = {}, mics = {}, ready = {}, counter = { Operator: 0, Caller: 0 }, pending = { Operator: null, Caller: null };
+    var stopped = false, failed = false, live = false, readyTimer = null, audioTimer = null, replayTimer = null;
+    var sockets = {}, mics = {}, ready = {}, heard = {}, counter = { Operator: 0, Caller: 0 }, pending = { Operator: null, Caller: null };
 
     function emit(ev, v) { handlers[ev].forEach(function (fn) { fn(v); }); }
     function clock() { return env.now().toLocaleTimeString('en-GB', { hour12: false }); }
@@ -62,6 +67,7 @@
 
     function closeLive() {
       if (readyTimer !== null) { env.clearTimeout(readyTimer); readyTimer = null; }
+      if (audioTimer !== null) { env.clearTimeout(audioTimer); audioTimer = null; }
       SPEAKERS.forEach(function (s) {
         var ws = sockets[s];
         if (ws) { ws.onmessage = ws.onclose = ws.onerror = null; ws.close(); }
@@ -82,9 +88,10 @@
     function onMessage(speaker, msg) {
       if (msg.type === 'ready') {
         ready[speaker] = true;
-        if (SPEAKERS.every(function (s) { return ready[s]; })) {
+        if (SPEAKERS.every(function (s) { return ready[s]; }) && readyTimer !== null) {
           env.clearTimeout(readyTimer); readyTimer = null;
-          emit('mode', 'live');
+          audioTimer = env.setTimeout(function () { audioTimer = null; fail(); }, AUDIO_TIMEOUT);
+          checkLive();
         }
       } else if (msg.type === 'partial' || msg.type === 'final') {
         if (!pending[speaker]) pending[speaker] = { id: speaker + '-' + counter[speaker], time: clock() };
@@ -96,17 +103,30 @@
       }
     }
 
+    /* Live only once both relays are ready and audio is actually reaching them from both mics. */
+    function checkLive() {
+      if (live || failed || stopped) return;
+      if (!SPEAKERS.every(function (s) { return ready[s] && heard[s]; })) return;
+      live = true;
+      if (audioTimer !== null) { env.clearTimeout(audioTimer); audioTimer = null; }
+      emit('mode', 'live');
+    }
+
     function openSocket(speaker) {
       var ws = new env.WebSocket(opts.relayUrl + '?speaker=' + speaker);
       ws.binaryType = 'arraybuffer';
       ws.onmessage = function (e) { var m; try { m = JSON.parse(e.data); } catch (err) { return; } onMessage(speaker, m); };
       ws.onclose = ws.onerror = fail;
       sockets[speaker] = ws;
-      mics[speaker].onChunk(function (chunk) { if (ready[speaker] && sockets[speaker] === ws) ws.send(chunk); });
+      mics[speaker].onChunk(function (chunk) {
+        if (!ready[speaker] || sockets[speaker] !== ws) return;
+        ws.send(chunk);
+        if (!heard[speaker]) { heard[speaker] = true; checkLive(); }
+      });
     }
 
     function startLive() {
-      readyTimer = env.setTimeout(function () { readyTimer = null; fail(); }, READY_TIMEOUT);
+      emit('mode', 'connecting');
       Promise.resolve().then(env.listMics).then(function (list) {
         var picked = pickMics(list || [], opts.micLabels);
         if (!picked) throw new Error('need two microphones');
@@ -120,6 +140,7 @@
         }
         SPEAKERS.forEach(function (s, i) { mics[s] = opened[i]; });
         SPEAKERS.forEach(openSocket);
+        if (!failed) readyTimer = env.setTimeout(function () { readyTimer = null; fail(); }, READY_TIMEOUT);
       }).catch(fail);
     }
 
@@ -137,5 +158,5 @@
     };
   }
 
-  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, relayUrlFor: relayUrlFor };
+  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, relayUrlFor: relayUrlFor, isNearBottom: isNearBottom };
 });

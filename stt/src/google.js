@@ -51,6 +51,8 @@ function createGoogleStream({ client, request, onPartial, onFinal, onError }) {
   });
   // Errors after end() are the cancel of a stream we closed ourselves.
   stream.on('error', err => { if (!ended) onError(err); });
+  // Google closing the stream on its own leaves nothing to transcribe with: treat it as an error.
+  stream.on('end', () => { if (!ended) { ended = true; onError(new Error('Google stream ended')); } });
   stream.write(request);
   return {
     write(buf) { if (!ended) stream.write({ audio: buf }); },
@@ -58,8 +60,26 @@ function createGoogleStream({ client, request, onPartial, onFinal, onError }) {
   };
 }
 
+/* A Speech V2 stream takes about 5 minutes of audio at most. Before that, open a fresh stream, switch
+   writes to it, and half-close the old one so Google still sends the finals for audio it already has. */
+function createRotatingStream({ open, maxMs = 270000, setTimeout: set = setTimeout, clearTimeout: clear = clearTimeout }) {
+  let current = open(), timer = null, ended = false;
+  const schedule = () => { timer = set(rotate, maxMs); };
+  function rotate() {
+    const old = current;
+    current = open();
+    old.end();
+    schedule();
+  }
+  schedule();
+  return {
+    write(buf) { if (!ended) current.write(buf); },
+    end() { if (ended) return; ended = true; clear(timer); timer = null; current.end(); }
+  };
+}
+
 function makeClient(location) {
   return new v2.SpeechClient({ apiEndpoint: `${location}-speech.googleapis.com` });
 }
 
-module.exports = { parseLanguages, buildStreamingRequest, mapResponse, createGoogleStream, makeClient };
+module.exports = { parseLanguages, buildStreamingRequest, mapResponse, createGoogleStream, createRotatingStream, makeClient };

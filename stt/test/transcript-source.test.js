@@ -1,6 +1,13 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTranscriptSource, upsertLine, chipsFor, sttMode, relayUrlFor } = require('../client/transcript-source');
+const { createTranscriptSource, upsertLine, chipsFor, sttMode, relayUrlFor, isNearBottom } = require('../client/transcript-source');
+
+test('isNearBottom: within 24 px of the end counts as following', () => {
+  assert.equal(isNearBottom({ scrollTop: 600, scrollHeight: 1000, clientHeight: 400 }), true);
+  assert.equal(isNearBottom({ scrollTop: 580, scrollHeight: 1000, clientHeight: 400 }), true);
+  assert.equal(isNearBottom({ scrollTop: 570, scrollHeight: 1000, clientHeight: 400 }), false);
+  assert.equal(isNearBottom({ scrollTop: 0, scrollHeight: 300, clientHeight: 400 }), true, 'no overflow');
+});
 
 const REPLAY = [
   ['14:19:51', 'Operator', '1669 emergency. What is your emergency?'],
@@ -16,7 +23,7 @@ const RELAY = 'ws://localhost:8787/stt';
 const flush = () => new Promise(r => setImmediate(r));
 
 /* Hand-driven clock, sockets and microphones. */
-function makeEnv({ mics = [{ deviceId: 'a', label: 'Mic A' }, { deviceId: 'b', label: 'Mic B' }], openFails = false } = {}) {
+function makeEnv({ mics = [{ deviceId: 'a', label: 'Mic A' }, { deviceId: 'b', label: 'Mic B' }], openFails = false, listDelay = 0 } = {}) {
   let now = 0, seq = 0;
   const timers = new Map();
   const sockets = [], opened = {}, closedMics = [];
@@ -29,7 +36,7 @@ function makeEnv({ mics = [{ deviceId: 'a', label: 'Mic A' }, { deviceId: 'b', l
   }
   const env = {
     WebSocket: FakeWebSocket,
-    listMics: () => Promise.resolve(mics),
+    listMics: () => listDelay ? new Promise(res => env.setTimeout(() => res(mics), listDelay)) : Promise.resolve(mics),
     openMic: (id) => openFails ? Promise.reject(new Error('denied')) : Promise.resolve({
       onChunk(fn) { opened[id] = fn; },
       close() { closedMics.push(id); }
@@ -81,22 +88,26 @@ async function goLive(opts) {
   await flush(); await flush();
   return Object.assign(h, c, { src });
 }
+const ready = h => h.sockets.forEach((s, i) => s.emitMessage({ type: 'ready', speaker: i ? 'Caller' : 'Operator' }));
+const audio = h => { h.opened.a(new ArrayBuffer(2)); h.opened.b(new ArrayBuffer(2)); };
+async function goLiveFlowing(opts) { const h = await goLive(opts); ready(h); audio(h); return h; }
 
-test('live: one socket per speaker, mode live once both are ready', async () => {
+test('live: connecting first; live only when both sockets are ready and audio flows from both mics', async () => {
   const h = await goLive();
   assert.deepEqual(h.sockets.map(s => s.url), [RELAY + '?speaker=Operator', RELAY + '?speaker=Caller']);
-  assert.deepEqual(h.modes, []);
-  h.sockets[0].emitMessage({ type: 'ready', speaker: 'Operator' });
-  assert.deepEqual(h.modes, []);
-  h.sockets[1].emitMessage({ type: 'ready', speaker: 'Caller' });
-  assert.deepEqual(h.modes, ['live']);
-  h.advance(5000);
-  assert.deepEqual(h.modes, ['live'], 'the 3 s ready timeout is cleared');
+  assert.deepEqual(h.modes, ['connecting']);
+  ready(h);
+  assert.deepEqual(h.modes, ['connecting'], 'ready alone is not live: no audio yet');
+  h.opened.a(new ArrayBuffer(2));
+  assert.deepEqual(h.modes, ['connecting'], 'one mic is not enough');
+  h.opened.b(new ArrayBuffer(2));
+  assert.deepEqual(h.modes, ['connecting', 'live']);
+  h.advance(60000);
+  assert.deepEqual(h.modes, ['connecting', 'live'], 'both timers are cleared');
 });
 
 test('live: partials and the final share one id; chips only on the final', async () => {
-  const h = await goLive();
-  h.sockets.forEach((s, i) => s.emitMessage({ type: 'ready', speaker: i ? 'Caller' : 'Operator' }));
+  const h = await goLiveFlowing();
   const caller = h.sockets[1];
   caller.emitMessage({ type: 'partial', speaker: 'Caller', text: 'Motorcycle' });
   caller.emitMessage({ type: 'partial', speaker: 'Caller', text: 'Motorcycle hit a' });
@@ -108,67 +119,92 @@ test('live: partials and the final share one id; chips only on the final', async
   assert.equal(h.lines[3].id, 'Caller-1');
 });
 
-test('live: mic chunks go to their own speaker socket', async () => {
+test('live: mic chunks go to their own speaker socket, only after that socket is ready', async () => {
   const h = await goLive();
-  h.sockets.forEach((s, i) => s.emitMessage({ type: 'ready', speaker: i ? 'Caller' : 'Operator' }));
+  h.opened.b(new ArrayBuffer(1));
+  ready(h);
   const chunk = new ArrayBuffer(4);
   h.opened.b(chunk);
   assert.deepEqual(h.sockets[1].sent, [chunk]);
   assert.deepEqual(h.sockets[0].sent, []);
 });
 
-test('fallback at start: no ready within 3000 ms', async () => {
+test('the permission prompt does not count against the 3 s ready timeout', async () => {
+  const h = await goLive({ listDelay: 5000 });
+  assert.deepEqual(h.modes, ['connecting']);
+  h.advance(5000); await flush(); await flush();
+  assert.equal(h.sockets.length, 2);
+  assert.deepEqual(h.modes, ['connecting'], 'still connecting after a 5 s prompt');
+  ready(h); audio(h);
+  assert.deepEqual(h.modes, ['connecting', 'live']);
+});
+
+test('fallback at start: no ready within 3000 ms of the sockets opening', async () => {
   const h = await goLive();
-  h.advance(2999); assert.deepEqual(h.modes, []);
+  h.advance(2999); assert.deepEqual(h.modes, ['connecting']);
   h.advance(1);
-  assert.deepEqual(h.modes, ['replay']);
+  assert.deepEqual(h.modes, ['connecting', 'replay']);
   assert.equal(h.lines[0].id, 'replay-0');
   assert.ok(h.sockets.every(s => s.closed));
   assert.deepEqual(h.closedMics.sort(), ['a', 'b']);
 });
 
+test('fallback at start: ready but no audio within 10 s (audio context never started)', async () => {
+  const h = await goLive();
+  ready(h);
+  h.opened.a(new ArrayBuffer(2));
+  h.advance(9999); assert.deepEqual(h.modes, ['connecting']);
+  h.advance(1);
+  assert.deepEqual(h.modes, ['connecting', 'replay']);
+  assert.equal(h.lines[0].id, 'replay-0');
+});
+
 test('fallback at start: only one microphone', async () => {
   const h = await goLive({ mics: [{ deviceId: 'a', label: 'Mic A' }] });
-  assert.deepEqual(h.modes, ['replay']);
+  assert.deepEqual(h.modes, ['connecting', 'replay']);
   assert.equal(h.sockets.length, 0);
   assert.equal(h.lines[0].id, 'replay-0');
 });
 
 test('fallback at start: microphone denied', async () => {
   const h = await goLive({ openFails: true });
-  assert.deepEqual(h.modes, ['replay']);
+  assert.deepEqual(h.modes, ['connecting', 'replay']);
   assert.equal(h.sockets.length, 0);
 });
 
-test('fallback mid-call: grey partial removed, finals kept, nothing re-emitted', async () => {
+test('fallback at start: relay down closes the socket at once', async () => {
   const h = await goLive();
-  h.sockets.forEach((s, i) => s.emitMessage({ type: 'ready', speaker: i ? 'Caller' : 'Operator' }));
+  h.sockets[0].emitClose();
+  assert.deepEqual(h.modes, ['connecting', 'replay']);
+});
+
+test('fallback mid-call: grey partial removed, finals kept, nothing re-emitted', async () => {
+  const h = await goLiveFlowing();
   const caller = h.sockets[1];
   caller.emitMessage({ type: 'final', speaker: 'Caller', text: 'Motorcycle hit a pole.', lang: 'en-us' });
   caller.emitMessage({ type: 'partial', speaker: 'Caller', text: 'No hel' });
   const before = h.lines.length;
   caller.emitClose();
   assert.deepEqual(h.lines[before], { id: 'Caller-1', removed: true });
-  assert.deepEqual(h.modes, ['live', 'replay']);
+  assert.deepEqual(h.modes, ['connecting', 'live', 'replay']);
   assert.ok(h.sockets.every(s => s.closed));
   assert.deepEqual(h.closedMics.sort(), ['a', 'b']);
   assert.equal(h.lines[before + 1].id, 'replay-0');
   assert.equal(h.lines.filter(l => l.id === 'Caller-0').length, 1);
   h.sockets[0].emitClose();
-  assert.deepEqual(h.modes, ['live', 'replay'], 'fallback is one-way');
+  assert.deepEqual(h.modes, ['connecting', 'live', 'replay'], 'fallback is one-way');
 });
 
 test('fallback mid-call: relay error message', async () => {
-  const h = await goLive();
-  h.sockets.forEach((s, i) => s.emitMessage({ type: 'ready', speaker: i ? 'Caller' : 'Operator' }));
+  const h = await goLiveFlowing();
   h.sockets[0].emitMessage({ type: 'error', message: 'quota' });
-  assert.deepEqual(h.modes, ['live', 'replay']);
+  assert.deepEqual(h.modes, ['connecting', 'live', 'replay']);
 });
 
 test('micLabels pick devices by label substring, whatever the order', async () => {
   const h = await goLive({ mics: [{ deviceId: 'u', label: 'USB Audio' }, { deviceId: 'x', label: 'Laptop' }, { deviceId: 'hs', label: 'Headset Mic' }],
     micLabels: { Operator: 'Headset', Caller: 'USB' } });
-  h.sockets.forEach((s, i) => s.emitMessage({ type: 'ready', speaker: i ? 'Caller' : 'Operator' }));
+  ready(h);
   h.opened.hs(new ArrayBuffer(1));
   h.opened.u(new ArrayBuffer(2));
   assert.equal(h.sockets[0].sent[0].byteLength, 1);
@@ -182,8 +218,8 @@ test('stop() clears timers and closes sockets and mics', async () => {
   assert.equal(h.timers.size, 0);
   assert.ok(h.sockets.every(s => s.closed));
   assert.deepEqual(h.closedMics.sort(), ['a', 'b']);
-  h.advance(10000);
-  assert.deepEqual(h.modes, []);
+  h.advance(20000);
+  assert.deepEqual(h.modes, ['connecting']);
 });
 
 test('upsertLine replaces, appends and removes', () => {

@@ -812,8 +812,10 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
       !p.partial && p.onCopy !== false && !isOp ? h(Button, { variant: 'ghost', size: 'sm', icon: p.copied ? 'check' : 'copy-to', title: 'Copy to intake form', onClick: p.onCopy }) : h('span'));
   }
 
-  /* TranscriptBadge: which Call Transcript source is running, live speech-to-text or the scripted replay. */
+  /* TranscriptBadge: which Call Transcript source is running: live speech-to-text, the scripted replay,
+     or connecting (live is starting and no audio has reached the relay yet). */
   function TranscriptBadge(p) {
+    if (p.mode === 'connecting') return h(StatusPill, { tone: 'info', loading: true }, 'Connecting…');
     var live = p.mode === 'live';
     return h(StatusPill, { tone: live ? 'live' : 'neutral', title: live ? 'Live speech-to-text' : 'Scripted replay of the EM-104 call' }, live ? 'Live' : 'Replay');
   }
@@ -1001,7 +1003,7 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
       en: ['no helmet', 'not wearing a helmet', 'without a helmet'],
       th: ['ไม่ใส่หมวก', 'ไม่สวมหมวกกันน็อก', 'ไม่ได้ใส่หมวกกันน็อค'] },
     { chip: 'High-energy impact', type: 'moi',
-      en: ['high speed', 'very fast', 'flew off'],
+      en: ['high speed', 'flew off'],
       th: ['ความเร็วสูง', 'ขับเร็วมาก', 'กระเด็น'] },
     { chip: 'Unconscious', type: 'noi',
       en: ['unconscious', 'not responding', 'passed out'],
@@ -1016,15 +1018,16 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
       en: ['chest pain', 'pain in his chest', 'pain in her chest'],
       th: ['เจ็บหน้าอก', 'แน่นหน้าอก'] },
     { chip: 'Food allergy', type: 'noi',
-      en: ['food allergy', 'allergic to'],
-      th: ['แพ้อาหาร'] },
+      en: ['food allergy', 'allergic to food', 'allergic to seafood', 'allergic to shrimp', 'allergic to peanuts', 'allergic to nuts'],
+      th: ['แพ้อาหาร', 'แพ้กุ้ง', 'แพ้ถั่ว'] },
     { chip: 'Stroke signs', type: 'noi',
       en: ['face drooping', 'slurred speech'],
       th: ['ปากเบี้ยว', 'พูดไม่ชัด', 'แขนขาอ่อนแรง'] }
   ];
 
-  var EN_NEGATIONS = ['not ', 'no longer '];
-  var TH_NEGATION = 'ไม่';
+  /* A phrase is not suggested when the text right before it ends with one of these. */
+  var EN_NEGATIONS = ['not ', 'no longer ', 'no ', "wasn't ", "isn't ", "aren't ", "weren't ", 'never ', 'denies ', 'without '];
+  var TH_NEGATIONS = ['ไม่', 'ไม่ได้', 'ไม่มี', 'ไม่ได้มี', 'ยังไม่'];
 
   function isWordChar(c) { return /[a-z0-9]/.test(c || ''); }
 
@@ -1041,14 +1044,15 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
 
   function hasThai(text, phrase) {
     for (var i = text.indexOf(phrase); i >= 0; i = text.indexOf(phrase, i + 1)) {
-      if (text.slice(0, i).slice(-TH_NEGATION.length) === TH_NEGATION) continue;
+      var before = text.slice(0, i);
+      if (TH_NEGATIONS.some(function (n) { return before.slice(-n.length) === n; })) continue;
       return true;
     }
     return false;
   }
 
   function suggestChips(text) {
-    var base = String(text || '').normalize('NFC').toLowerCase();
+    var base = String(text || '').normalize('NFC').toLowerCase().replace(/[‘’]/g, "'");
     var en = base.replace(/\s+/g, ' ');
     var th = base.replace(/\s+/g, '');
     return PHRASES.filter(function (p) {
@@ -1066,20 +1070,40 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   var OUT_RATE = 16000;
 
-  /* Each output sample is the average of the input samples in its window. */
-  function toPcm16k(input, inRate) {
-    var n = input.length, outLen = Math.floor(n * OUT_RATE / inRate), out = new Int16Array(outLen);
-    for (var i = 0; i < outLen; i++) {
-      var start = Math.floor(i * inRate / OUT_RATE), end = Math.max(start + 1, Math.min(n, Math.floor((i + 1) * inRate / OUT_RATE)));
-      var sum = 0;
-      for (var j = start; j < end; j++) sum += input[j];
-      var x = Math.max(-1, Math.min(1, sum / (end - start)));
-      out[i] = x < 0 ? Math.round(x * 32768) : Math.round(x * 32767);
-    }
-    return out;
+  function toInt16(x) {
+    x = Math.max(-1, Math.min(1, x));
+    return x < 0 ? Math.round(x * 32768) : Math.round(x * 32767);
   }
 
-  return { toPcm16k: toPcm16k };
+  /* Stateful 16 kHz resampler for a stream of blocks (the worklet delivers 128 samples at a time).
+     Output sample k is the average of input samples [floor(k*in/16000), floor((k+1)*in/16000)), counted
+     across the whole stream, so block edges never drop or duplicate samples. */
+  function createResampler(inRate) {
+    var pending = [], base = 0, total = 0, k = 0;
+    return {
+      push: function (input) {
+        for (var i = 0; i < input.length; i++) pending.push(input[i]);
+        total += input.length;
+        var out = [];
+        while ((k + 1) * inRate <= total * OUT_RATE) {
+          var start = Math.floor(k * inRate / OUT_RATE), end = Math.max(start + 1, Math.floor((k + 1) * inRate / OUT_RATE));
+          var sum = 0;
+          for (var j = start; j < end; j++) sum += pending[j - base];
+          out.push(toInt16(sum / (end - start)));
+          k++;
+        }
+        var keepFrom = Math.floor(k * inRate / OUT_RATE);
+        pending = pending.slice(keepFrom - base);
+        base = keepFrom;
+        return Int16Array.from(out);
+      }
+    };
+  }
+
+  /* One whole buffer at once. */
+  function toPcm16k(input, inRate) { return createResampler(inRate).push(input); }
+
+  return { toPcm16k: toPcm16k, createResampler: createResampler };
 });
 /* RETINA STT: the Call Transcript source. Live = two mics through the relay; Replay = the scripted EM-104 call.
    Live falls back to Replay, one way, when anything on the live path fails (ADR 0002). */
@@ -1089,13 +1113,18 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
   else { root.EMS = root.EMS || {}; Object.assign(root.EMS, api); }
 })(typeof window !== 'undefined' ? window : globalThis, function (root) {
   var SPEAKERS = ['Operator', 'Caller'];
-  var READY_TIMEOUT = 3000, REPLAY_GAP = 1500, RELAY_PORT = '8787';
+  /* READY_TIMEOUT counts from the sockets opening (not from the mic permission prompt).
+     AUDIO_TIMEOUT gives Chrome time to start a suspended AudioContext on the first click. */
+  var READY_TIMEOUT = 3000, AUDIO_TIMEOUT = 10000, REPLAY_GAP = 1500, RELAY_PORT = '8787';
 
   function phrases() { return (typeof module === 'object' && module.exports) ? require('./phrases') : root.EMS; }
   function servedByRelay(loc) { return (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1') && String(loc.port) === RELAY_PORT; }
 
   function sttMode(loc) { return servedByRelay(loc) || /[?&]stt=live(&|$)/.test(loc.search || '') ? 'live' : 'replay'; }
   function relayUrlFor(loc) { return servedByRelay(loc) ? 'ws://' + loc.host + '/stt' : 'ws://localhost:' + RELAY_PORT + '/stt'; }
+
+  /* True when a scroll box is showing its end (within 24 px), so new lines should keep it pinned there. */
+  function isNearBottom(el) { return el.scrollHeight - el.scrollTop - el.clientHeight <= 24; }
 
   function upsertLine(lines, line) {
     if (line.removed) return lines.filter(function (l) { return l.id !== line.id; });
@@ -1126,8 +1155,8 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
 
   function createTranscriptSource(opts) {
     var env = opts.env, handlers = { line: [], mode: [] };
-    var stopped = false, failed = false, readyTimer = null, replayTimer = null;
-    var sockets = {}, mics = {}, ready = {}, counter = { Operator: 0, Caller: 0 }, pending = { Operator: null, Caller: null };
+    var stopped = false, failed = false, live = false, readyTimer = null, audioTimer = null, replayTimer = null;
+    var sockets = {}, mics = {}, ready = {}, heard = {}, counter = { Operator: 0, Caller: 0 }, pending = { Operator: null, Caller: null };
 
     function emit(ev, v) { handlers[ev].forEach(function (fn) { fn(v); }); }
     function clock() { return env.now().toLocaleTimeString('en-GB', { hour12: false }); }
@@ -1145,6 +1174,7 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
 
     function closeLive() {
       if (readyTimer !== null) { env.clearTimeout(readyTimer); readyTimer = null; }
+      if (audioTimer !== null) { env.clearTimeout(audioTimer); audioTimer = null; }
       SPEAKERS.forEach(function (s) {
         var ws = sockets[s];
         if (ws) { ws.onmessage = ws.onclose = ws.onerror = null; ws.close(); }
@@ -1165,9 +1195,10 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
     function onMessage(speaker, msg) {
       if (msg.type === 'ready') {
         ready[speaker] = true;
-        if (SPEAKERS.every(function (s) { return ready[s]; })) {
+        if (SPEAKERS.every(function (s) { return ready[s]; }) && readyTimer !== null) {
           env.clearTimeout(readyTimer); readyTimer = null;
-          emit('mode', 'live');
+          audioTimer = env.setTimeout(function () { audioTimer = null; fail(); }, AUDIO_TIMEOUT);
+          checkLive();
         }
       } else if (msg.type === 'partial' || msg.type === 'final') {
         if (!pending[speaker]) pending[speaker] = { id: speaker + '-' + counter[speaker], time: clock() };
@@ -1179,17 +1210,30 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
       }
     }
 
+    /* Live only once both relays are ready and audio is actually reaching them from both mics. */
+    function checkLive() {
+      if (live || failed || stopped) return;
+      if (!SPEAKERS.every(function (s) { return ready[s] && heard[s]; })) return;
+      live = true;
+      if (audioTimer !== null) { env.clearTimeout(audioTimer); audioTimer = null; }
+      emit('mode', 'live');
+    }
+
     function openSocket(speaker) {
       var ws = new env.WebSocket(opts.relayUrl + '?speaker=' + speaker);
       ws.binaryType = 'arraybuffer';
       ws.onmessage = function (e) { var m; try { m = JSON.parse(e.data); } catch (err) { return; } onMessage(speaker, m); };
       ws.onclose = ws.onerror = fail;
       sockets[speaker] = ws;
-      mics[speaker].onChunk(function (chunk) { if (ready[speaker] && sockets[speaker] === ws) ws.send(chunk); });
+      mics[speaker].onChunk(function (chunk) {
+        if (!ready[speaker] || sockets[speaker] !== ws) return;
+        ws.send(chunk);
+        if (!heard[speaker]) { heard[speaker] = true; checkLive(); }
+      });
     }
 
     function startLive() {
-      readyTimer = env.setTimeout(function () { readyTimer = null; fail(); }, READY_TIMEOUT);
+      emit('mode', 'connecting');
       Promise.resolve().then(env.listMics).then(function (list) {
         var picked = pickMics(list || [], opts.micLabels);
         if (!picked) throw new Error('need two microphones');
@@ -1203,6 +1247,7 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
         }
         SPEAKERS.forEach(function (s, i) { mics[s] = opened[i]; });
         SPEAKERS.forEach(openSocket);
+        if (!failed) readyTimer = env.setTimeout(function () { readyTimer = null; fail(); }, READY_TIMEOUT);
       }).catch(fail);
     }
 
@@ -1220,7 +1265,7 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
     };
   }
 
-  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, relayUrlFor: relayUrlFor };
+  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, relayUrlFor: relayUrlFor, isNearBottom: isNearBottom };
 });
 /* RETINA STT: browser microphone capture. One openMic() per speaker; chunks are 100 ms of 16 kHz PCM16. */
 (function (root, factory) {
@@ -1255,8 +1300,9 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
       })
       .then(function () {
         var node = new root.AudioWorkletNode(ctx, 'retina-pcm');
+        var resampler = pcmLib().createResampler(ctx.sampleRate);
         node.port.onmessage = function (e) {
-          var pcm = pcmLib().toPcm16k(e.data, ctx.sampleRate);
+          var pcm = resampler.push(e.data);
           for (var i = 0; i < pcm.length; i++) {
             buf[fill++] = pcm[i];
             if (fill === CHUNK) {
@@ -1267,9 +1313,24 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
           }
         };
         ctx.createMediaStreamSource(stream).connect(node);
+        /* A muted path to the speakers keeps the graph pulled, so the worklet always runs. */
+        var mute = ctx.createGain();
+        mute.gain.value = 0;
+        node.connect(mute).connect(ctx.destination);
+        /* Chrome may create the context suspended until the page gets a click or key press.
+           Try now, and again on the first gesture; the transcript source falls back to Replay if audio never flows. */
+        var events = ['pointerdown', 'keydown'];
+        var resume = function () { if (ctx.state === 'suspended') ctx.resume(); };
+        var unlisten = function () { events.forEach(function (ev) { root.document.removeEventListener(ev, resume, true); }); };
+        if (ctx.state === 'suspended') {
+          events.forEach(function (ev) { root.document.addEventListener(ev, resume, true); });
+          ctx.onstatechange = function () { if (ctx.state === 'running') unlisten(); };
+          ctx.resume();
+        }
         return {
           onChunk: function (fn) { listeners.push(fn); },
           close: function () {
+            unlisten();
             stream.getTracks().forEach(function (t) { t.stop(); });
             ctx.close();
             root.URL.revokeObjectURL(url);
@@ -1313,6 +1374,7 @@ window.EMS.STT_WORKLET_SRC = "/* RETINA STT: AudioWorklet that forwards each mon
     var kw = useState(CASE.keywords), locked = useState(false), sent = useState(false), copied = useState({});
     var type = useState(null), facts = useState([]), switchTo = useState(null);
     var tl = useState([]), mode = useState('replay');
+    var transcriptEnd = React.useRef(null), followTranscript = React.useRef(true);
     /* Changing type clears the chips, so ask first when there are any. */
     function pickType(t) {
       if (t === type[0]) return;
@@ -1331,6 +1393,18 @@ window.EMS.STT_WORKLET_SRC = "/* RETINA STT: AudioWorklet that forwards each mon
       src.start();
       return src.stop;
     }, []);
+    /* Keep the newest line in view, unless the operator has scrolled up to read. */
+    useEffect(function () {
+      var box = transcriptEnd.current && transcriptEnd.current.parentElement;
+      if (!box) return;
+      function onScroll() { followTranscript.current = E.isNearBottom(box); }
+      box.addEventListener('scroll', onScroll);
+      return function () { box.removeEventListener('scroll', onScroll); };
+    }, []);
+    useEffect(function () {
+      var box = transcriptEnd.current && transcriptEnd.current.parentElement;
+      if (box && followTranscript.current) box.scrollTop = box.scrollHeight;
+    }, [tl[0]]);
     var pin = locked[0] ? 'incident-locked' : 'incident';
     return h('div', { className: 'ems-app ems-app-1440' },
       h(E.AppBar, { title: 'EMS 1669 Call Intake', subtitle: 'Bangkok Emergency Medical Command', icon: 'phone' },
@@ -1346,7 +1420,7 @@ window.EMS.STT_WORKLET_SRC = "/* RETINA STT: AudioWorklet that forwards each mon
             return h(E.TranscriptLine, { key: l.id, time: l.time, speaker: l.speaker, text: l.text, partial: l.partial, keywords: KW, copied: copied[0][l.id],
               onCopy: function () { var c = Object.assign({}, copied[0]); c[l.id] = true; copied[1](c); } });
           }),
-          h('div', { className: 'ems-row', style: { padding: 16, color: 'var(--text-muted)' } }, h(E.Waveform, { bars: 10 }), 'Listening…')),
+          h('div', { ref: transcriptEnd, className: 'ems-row', style: { padding: 16, color: 'var(--text-muted)' } }, h(E.Waveform, { bars: 10 }), 'Listening…')),
         /* Center: facts only. Intake never sets a triage code; the dispatcher does. */
         h(E.Card, { title: 'Patient & Incident Intake', subtitle: 'Draft case #' + CASE.id + ' · facts only, triage is set by Dispatch', icon: 'user', scroll: true },
           h('div', { className: 'ems-col' },

@@ -49,6 +49,18 @@ test('TranscriptBadge reads Live or Replay', () => {
   assert.deepEqual(replay.children, ['Replay']);
 });
 
+test('TranscriptBadge shows Connecting… while the live path starts', () => {
+  const b = EMS.TranscriptBadge({ mode: 'connecting' });
+  assert.equal(b.type, EMS.StatusPill);
+  assert.equal(b.props.tone, 'info');
+  assert.equal(b.props.loading, true);
+  assert.deepEqual(b.children, ['Connecting…']);
+});
+
+test('Intake follows new transcript lines', () => {
+  assert.match(src, /E\.isNearBottom\(/);
+});
+
 test('the STT client is injected into the bundle', () => {
   for (const name of ['createTranscriptSource', 'suggestChips', 'chipsFor', 'upsertLine', 'sttMode', 'relayUrlFor', 'listMics', 'openMic', 'toPcm16k']) {
     assert.equal(typeof EMS[name], 'function', name);

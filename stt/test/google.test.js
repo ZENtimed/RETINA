@@ -1,7 +1,59 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { PassThrough } = require('node:stream');
-const { parseLanguages, buildStreamingRequest, mapResponse, createGoogleStream } = require('../src/google');
+const { parseLanguages, buildStreamingRequest, mapResponse, createGoogleStream, createRotatingStream } = require('../src/google');
+
+test('createGoogleStream: an end we did not ask for is reported as an error', () => {
+  const stream = new PassThrough({ objectMode: true });
+  stream.write = () => true;
+  const errors = [];
+  createGoogleStream({ client: { _streamingRecognize: () => stream }, request: {}, onPartial() {}, onFinal() {}, onError: e => errors.push(e.message) });
+  stream.emit('end');
+  assert.deepEqual(errors, ['Google stream ended']);
+});
+
+test('createGoogleStream: our own end() is not an error', () => {
+  const stream = new PassThrough({ objectMode: true });
+  stream.write = () => true;
+  const errors = [];
+  const s = createGoogleStream({ client: { _streamingRecognize: () => stream }, request: {}, onPartial() {}, onFinal() {}, onError: e => errors.push(e) });
+  stream.end = () => stream.emit('end');
+  s.end();
+  assert.deepEqual(errors, []);
+});
+
+function fakeTimers() {
+  let now = 0, seq = 0; const timers = new Map();
+  return {
+    setTimeout: (fn, ms) => { const id = ++seq; timers.set(id, { at: now + ms, fn }); return id; },
+    clearTimeout: id => timers.delete(id),
+    advance(ms) { now += ms; for (const [id, t] of [...timers]) if (t.at <= now) { timers.delete(id); t.fn(); } },
+    size: () => timers.size
+  };
+}
+
+test('createRotatingStream: a fresh stream before the 5-minute limit, writes switch, the old one ends', () => {
+  const t = fakeTimers();
+  const opened = [];
+  const open = () => { const s = { writes: [], ends: 0, write(b) { s.writes.push(b); }, end() { s.ends++; } }; opened.push(s); return s; };
+  const r = createRotatingStream({ open, maxMs: 270000, setTimeout: t.setTimeout, clearTimeout: t.clearTimeout });
+  r.write('a');
+  t.advance(269999);
+  assert.equal(opened.length, 1);
+  t.advance(1);
+  assert.equal(opened.length, 2);
+  assert.equal(opened[0].ends, 1);
+  r.write('b');
+  assert.deepEqual(opened[0].writes, ['a']);
+  assert.deepEqual(opened[1].writes, ['b']);
+  t.advance(270000);
+  assert.equal(opened.length, 3, 'keeps rotating');
+  r.end();
+  assert.equal(opened[2].ends, 1);
+  assert.equal(t.size(), 0, 'no timer after end');
+  r.write('c');
+  assert.deepEqual(opened[2].writes, [], 'no writes after end');
+});
 
 test('parseLanguages defaults to auto and splits a list', () => {
   assert.deepEqual(parseLanguages(undefined), ['auto']);

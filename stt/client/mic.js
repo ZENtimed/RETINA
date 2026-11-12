@@ -31,8 +31,9 @@
       })
       .then(function () {
         var node = new root.AudioWorkletNode(ctx, 'retina-pcm');
+        var resampler = pcmLib().createResampler(ctx.sampleRate);
         node.port.onmessage = function (e) {
-          var pcm = pcmLib().toPcm16k(e.data, ctx.sampleRate);
+          var pcm = resampler.push(e.data);
           for (var i = 0; i < pcm.length; i++) {
             buf[fill++] = pcm[i];
             if (fill === CHUNK) {
@@ -43,9 +44,24 @@
           }
         };
         ctx.createMediaStreamSource(stream).connect(node);
+        /* A muted path to the speakers keeps the graph pulled, so the worklet always runs. */
+        var mute = ctx.createGain();
+        mute.gain.value = 0;
+        node.connect(mute).connect(ctx.destination);
+        /* Chrome may create the context suspended until the page gets a click or key press.
+           Try now, and again on the first gesture; the transcript source falls back to Replay if audio never flows. */
+        var events = ['pointerdown', 'keydown'];
+        var resume = function () { if (ctx.state === 'suspended') ctx.resume(); };
+        var unlisten = function () { events.forEach(function (ev) { root.document.removeEventListener(ev, resume, true); }); };
+        if (ctx.state === 'suspended') {
+          events.forEach(function (ev) { root.document.addEventListener(ev, resume, true); });
+          ctx.onstatechange = function () { if (ctx.state === 'running') unlisten(); };
+          ctx.resume();
+        }
         return {
           onChunk: function (fn) { listeners.push(fn); },
           close: function () {
+            unlisten();
             stream.getTracks().forEach(function (t) { t.stop(); });
             ctx.close();
             root.URL.revokeObjectURL(url);
