@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createTranscriptSource, upsertLine, chipsFor, sttMode, sttSpeakers, sttMicLabels, relayUrlFor, suggestUrlFor, isNearBottom } = require('../client/transcript-source');
+const { createTranscriptSource, upsertLine, chipsFor, sttMode, sttSpeakers, sttMicLabels, relayUrlFor, suggestUrlFor, isNearBottom, criticalKeywords } = require('../client/transcript-source');
 
 test('isNearBottom: within 24 px of the end counts as following', () => {
   assert.equal(isNearBottom({ scrollTop: 600, scrollHeight: 1000, clientHeight: 400 }), true);
@@ -341,4 +341,17 @@ test('suggestUrlFor: the relay page posts to its own /suggest; any other page ha
   assert.equal(suggestUrlFor({ host: '127.0.0.1:8787', hostname: '127.0.0.1', port: '8787' }), 'http://127.0.0.1:8787/suggest');
   assert.equal(suggestUrlFor({ host: 'claude.ai', hostname: 'claude.ai', port: '' }), null);
   assert.equal(suggestUrlFor({ host: '', hostname: '', port: '' }), null);
+});
+
+test('criticalKeywords: only condition keywords actually heard on finished lines, in order, minus dismissed ones', () => {
+  const ln = (id, text, chips, partial = false) => ({ id, text, partial, chips });
+  assert.deepEqual(criticalKeywords([], []), [], 'nothing said, nothing shown');
+  const lines = [
+    ln('a', 'Motorcycle hit a pole.', [{ chip: 'Motorcycle vs pole', type: 'moi' }]),
+    ln('b', 'He is unconscious and not breathing.', [{ chip: 'Unconscious', type: 'noi' }, { chip: 'Not breathing', type: 'noi' }]),
+    ln('c', 'unconscious again', [{ chip: 'Unconscious', type: 'noi' }]),
+    ln('d', 'bleeding from his head', [{ chip: 'Head bleeding', type: 'noi' }], true)
+  ];
+  assert.deepEqual(criticalKeywords(lines, []), ['Unconscious', 'Not breathing'], 'injury chips and grey partials are left out; no duplicates');
+  assert.deepEqual(criticalKeywords(lines, ['Unconscious']), ['Not breathing'], 'a dismissed keyword stays dismissed even when heard again');
 });

@@ -160,3 +160,10 @@ test('no masked number is left', () => {
   assert.equal(EMS.CASE.contact, '081-234-5678');
   assert.equal(EMS.CASE.caller, 'Somchai Jaidee');
 });
+
+test('the critical keyword box lists what was heard, not the fixed demo words', () => {
+  assert.doesNotMatch(src, /useState\(CASE\.keywords\)/);
+  assert.match(src, /E\.criticalKeywords\(tl\[0\]/);
+  assert.match(src, /No critical keywords heard yet/);
+  assert.equal(typeof EMS.criticalKeywords, 'function');
+});
