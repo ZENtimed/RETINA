@@ -40,9 +40,19 @@
   }
 
   /* AI Detected Critical Keywords: the condition keywords (Nature of Illness chips) heard on finished lines, whatever the
-     Case Type, minus the ones the call taker dismissed as false positives. Nothing is shown that wasn't said. */
-  function criticalKeywords(lines, dismissed) {
-    return chipsFor(lines, 'noi').filter(function (k) { return (dismissed || []).indexOf(k) < 0; });
+     Case Type, minus the ones the call taker dismissed as false positives, then the ones the call taker added by hand.
+     Nothing is shown that wasn't said or typed, and no keyword appears twice (capitals ignored). */
+  function criticalKeywords(lines, dismissed, added) {
+    var out = chipsFor(lines, 'noi').filter(function (k) { return (dismissed || []).indexOf(k) < 0; });
+    (added || []).forEach(function (a) {
+      a = String(a).trim();
+      if (a && !out.some(function (k) { return k.toLowerCase() === a.toLowerCase(); })) out.push(a);
+    });
+    return out;
+  }
+  /* The known condition words, offered when the call taker adds a keyword by hand. */
+  function conditionKeywords() {
+    return phrases().PHRASES.filter(function (p) { return p.type === 'noi'; }).map(function (p) { return p.chip; });
   }
 
   /* ?mics=1 is a test mode for a machine with one microphone: it is the Caller, and the Operator is not transcribed.
@@ -199,5 +209,5 @@
     };
   }
 
-  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, sttSpeakers: sttSpeakers, sttMicLabels: sttMicLabels, relayUrlFor: relayUrlFor, suggestUrlFor: suggestUrlFor, isNearBottom: isNearBottom, criticalKeywords: criticalKeywords };
+  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, sttSpeakers: sttSpeakers, sttMicLabels: sttMicLabels, relayUrlFor: relayUrlFor, suggestUrlFor: suggestUrlFor, isNearBottom: isNearBottom, criticalKeywords: criticalKeywords, conditionKeywords: conditionKeywords };
 });

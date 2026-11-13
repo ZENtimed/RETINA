@@ -167,3 +167,9 @@ test('the critical keyword box lists what was heard, not the fixed demo words', 
   assert.match(src, /No critical keywords heard yet/);
   assert.equal(typeof EMS.criticalKeywords, 'function');
 });
+
+test('the critical keyword box lets the call taker add a keyword', () => {
+  assert.match(src, /'aria-label': 'Add critical keyword'/);
+  assert.match(src, /E\.criticalKeywords\(tl\[0\], kw\[0\], kwAdded\[0\]\)/);
+  assert.match(src, /E\.conditionKeywords\(\)/);
+});

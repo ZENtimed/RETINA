@@ -153,6 +153,9 @@ button { font-family: inherit; }
 .ems-chipin:focus-within { border-color: var(--action); box-shadow: 0 0 0 3px var(--action-soft); }
 .ems-chipin-input { flex: 1; min-width: 120px; height: var(--control-sm); padding: 0 8px; border: 0; background: transparent; color: var(--text-primary); font: 400 14px/20px var(--font-sans); outline: none; }
 .ems-chipin-input::placeholder { color: var(--text-muted); }
+/* Adding a critical keyword by hand: a dashed pill at the end of the keyword row. */
+.ems-kw-add { flex: 0 1 180px; min-width: 140px; border: 1px dashed var(--border-strong); border-radius: var(--radius-full); background: var(--bg-raised); padding: 0 12px; }
+.ems-kw-add:focus { border-style: solid; border-color: var(--action); box-shadow: 0 0 0 3px var(--action-soft); }
 .ems-chipin-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); }
 .ems-chipin-ai { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
 .ems-chipin-ai .ems-icon { color: var(--action); }
@@ -1169,9 +1172,19 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
   }
 
   /* AI Detected Critical Keywords: the condition keywords (Nature of Illness chips) heard on finished lines, whatever the
-     Case Type, minus the ones the call taker dismissed as false positives. Nothing is shown that wasn't said. */
-  function criticalKeywords(lines, dismissed) {
-    return chipsFor(lines, 'noi').filter(function (k) { return (dismissed || []).indexOf(k) < 0; });
+     Case Type, minus the ones the call taker dismissed as false positives, then the ones the call taker added by hand.
+     Nothing is shown that wasn't said or typed, and no keyword appears twice (capitals ignored). */
+  function criticalKeywords(lines, dismissed, added) {
+    var out = chipsFor(lines, 'noi').filter(function (k) { return (dismissed || []).indexOf(k) < 0; });
+    (added || []).forEach(function (a) {
+      a = String(a).trim();
+      if (a && !out.some(function (k) { return k.toLowerCase() === a.toLowerCase(); })) out.push(a);
+    });
+    return out;
+  }
+  /* The known condition words, offered when the call taker adds a keyword by hand. */
+  function conditionKeywords() {
+    return phrases().PHRASES.filter(function (p) { return p.type === 'noi'; }).map(function (p) { return p.chip; });
   }
 
   /* ?mics=1 is a test mode for a machine with one microphone: it is the Caller, and the Operator is not transcribed.
@@ -1328,7 +1341,7 @@ textarea.ems-input { height: auto; padding: 10px 12px; resize: vertical; line-he
     };
   }
 
-  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, sttSpeakers: sttSpeakers, sttMicLabels: sttMicLabels, relayUrlFor: relayUrlFor, suggestUrlFor: suggestUrlFor, isNearBottom: isNearBottom, criticalKeywords: criticalKeywords };
+  return { createTranscriptSource: createTranscriptSource, upsertLine: upsertLine, chipsFor: chipsFor, sttMode: sttMode, sttSpeakers: sttSpeakers, sttMicLabels: sttMicLabels, relayUrlFor: relayUrlFor, suggestUrlFor: suggestUrlFor, isNearBottom: isNearBottom, criticalKeywords: criticalKeywords, conditionKeywords: conditionKeywords };
 });
 /* RETINA Intake form suggestions, browser side: sends finished transcript lines to the relay's POST /suggest
    and reports the checked fields. Timing: 800 ms after the last finished line, one request in flight,
@@ -1542,7 +1555,7 @@ window.EMS.STT_WORKLET_SRC = "/* RETINA STT: AudioWorklet that forwards each mon
   /* 1. EMS Call Intake (1440 x 900) */
   function Intake() {
     /* kw = critical keywords the call taker dismissed; the box shows the ones heard on the call (E.criticalKeywords). */
-    var kw = useState([]), locked = useState(false), sent = useState(false), copied = useState({});
+    var kw = useState([]), kwAdded = useState([]), kwDraft = useState(''), locked = useState(false), sent = useState(false), copied = useState({});
     var type = useState(null), facts = useState([]), switchTo = useState(null);
     var tl = useState([]), mode = useState('replay');
     var transcriptEnd = React.useRef(null), followTranscript = React.useRef(true);
@@ -1640,14 +1653,25 @@ window.EMS.STT_WORKLET_SRC = "/* RETINA STT: AudioWorklet that forwards each mon
             h('div', { style: { padding: 16, borderRadius: 12, border: '1px solid var(--triage-red-line)', background: 'var(--bg-base)' } },
               h('div', { className: 'ems-row', style: { marginBottom: 12, justifyContent: 'space-between' } },
                 h('span', { className: 'ems-row', style: { fontWeight: 700 } }, h(E.Icon, { name: 'sparkle', size: 18, style: { color: 'var(--action)' } }), 'AI Detected Critical Keywords'),
-                h('span', { className: 'ems-muted', style: { fontSize: 12 } }, 'Auto-extracted · dismiss false positives')),
+                h('span', { className: 'ems-muted', style: { fontSize: 12 } }, 'Auto-extracted · dismiss false positives, or add your own')),
               (function () {
-                var heard = E.criticalKeywords(tl[0], []), shown = E.criticalKeywords(tl[0], kw[0]);
-                return h('div', { className: 'ems-row' }, shown.length ? shown.map(function (k) {
-                  return h(E.KeywordChip, { key: k, onRemove: function () { kw[1](function (prev) { return prev.concat([k]); }); } }, k);
-                }) : heard.length
-                  ? h('span', { className: 'ems-muted' }, 'All keywords dismissed. ', h('button', { className: 'ems-btn ems-btn-ghost ems-btn-sm', onClick: function () { kw[1]([]); } }, 'Restore'))
-                  : h('span', { className: 'ems-muted' }, 'No critical keywords heard yet.'));
+                /* Heard on the call (minus dismissed), then typed by the call taker. */
+                var heard = E.criticalKeywords(tl[0], [], []), shown = E.criticalKeywords(tl[0], kw[0], kwAdded[0]);
+                var same = function (a, b) { return a.toLowerCase() === b.toLowerCase(); };
+                function addKw() { var v = kwDraft[0].trim(); if (v) kwAdded[1](function (prev) { return prev.concat([v]); }); kwDraft[1](''); }
+                function removeKw(k) {
+                  kwAdded[1](function (prev) { return prev.filter(function (a) { return !same(a, k); }); });
+                  if (heard.indexOf(k) >= 0) kw[1](function (prev) { return prev.concat([k]); });
+                }
+                var options = E.conditionKeywords().filter(function (k) { return !shown.some(function (s) { return same(s, k); }); });
+                return h('div', { className: 'ems-row', style: { flexWrap: 'wrap' } },
+                  shown.map(function (k) { return h(E.KeywordChip, { key: k, onRemove: function () { removeKw(k); } }, k); }),
+                  !shown.length && !kw[0].length ? h('span', { className: 'ems-muted' }, 'No critical keywords heard yet.') : null,
+                  kw[0].length ? h('button', { type: 'button', className: 'ems-btn ems-btn-ghost ems-btn-sm', onClick: function () { kw[1]([]); } }, 'Restore dismissed') : null,
+                  h('input', { className: 'ems-chipin-input ems-kw-add', value: kwDraft[0], placeholder: 'Add keyword…', 'aria-label': 'Add critical keyword', list: 'ems-kw-options',
+                    onChange: function (e) { kwDraft[1](e.target.value); },
+                    onKeyDown: function (e) { if (e.key === 'Enter') { e.preventDefault(); addKw(); } } }),
+                  h('datalist', { id: 'ems-kw-options' }, options.map(function (k) { return h('option', { key: k, value: k }); })));
               })()),
             h('div', { style: grid('1fr 1fr') },
               h(E.Field, Object.assign({ label: 'Caller Name', icon: 'user' }, formField('callerName'))),

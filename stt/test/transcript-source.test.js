@@ -355,3 +355,18 @@ test('criticalKeywords: only condition keywords actually heard on finished lines
   assert.deepEqual(criticalKeywords(lines, []), ['Unconscious', 'Not breathing'], 'injury chips and grey partials are left out; no duplicates');
   assert.deepEqual(criticalKeywords(lines, ['Unconscious']), ['Not breathing'], 'a dismissed keyword stays dismissed even when heard again');
 });
+
+test('criticalKeywords: keywords the call taker added come after the heard ones, never twice (any capitals)', () => {
+  const ln = (id, chips) => ({ id, text: '', partial: false, chips });
+  const lines = [ln('a', [{ chip: 'Unconscious', type: 'noi' }]), ln('b', [{ chip: 'Not breathing', type: 'noi' }])];
+  assert.deepEqual(criticalKeywords(lines, [], ['Seizure', 'unconscious', 'seizure', '  ', 'Apnea']), ['Unconscious', 'Not breathing', 'Seizure', 'Apnea']);
+  assert.deepEqual(criticalKeywords([], [], ['Seizure']), ['Seizure'], 'added before anything is heard');
+  assert.deepEqual(criticalKeywords(lines, ['Unconscious'], ['Unconscious']), ['Not breathing', 'Unconscious'], 're-adding a dismissed one by hand shows it');
+});
+
+test('conditionKeywords: the known condition words offered when adding by hand', () => {
+  const { conditionKeywords } = require('../client/transcript-source');
+  const list = conditionKeywords();
+  for (const k of ['Unconscious', 'Not breathing', 'Head bleeding', 'Chest pain', 'Stroke signs', 'Food allergy']) assert.ok(list.includes(k), k);
+  assert.equal(list.includes('No helmet'), false, 'injury chips are not condition keywords');
+});
